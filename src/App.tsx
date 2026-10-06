@@ -1,3 +1,82 @@
+import { useEffect } from 'react'
+import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import { startSession, stopSession, useData } from './data/store'
+import { AuthProvider, useAuth } from './lib/auth'
+import { isConfigured } from './lib/supabase'
+import AuthScreen from './pages/AuthScreen'
+import SetupNeeded from './pages/SetupNeeded'
+import DeckList from './pages/DeckList'
+import DeckView from './pages/DeckView'
+import CardEditor from './pages/CardEditor'
+import Study from './pages/Study'
+import Settings from './pages/Settings'
+
 export default function App() {
-  return <h1>sketchcards</h1>
+  if (!isConfigured) return <SetupNeeded />
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Gate />
+      </BrowserRouter>
+    </AuthProvider>
+  )
+}
+
+function Gate() {
+  const { session, loading } = useAuth()
+  const userId = session?.user.id
+
+  useEffect(() => {
+    if (userId) void startSession(userId)
+    else stopSession()
+  }, [userId])
+
+  if (loading) return <div className="center muted">Loading…</div>
+  if (!session) return <AuthScreen />
+  return <Shell />
+}
+
+function Shell() {
+  const sync = useData((s) => s.sync)
+  const pending = useData((s) => s.pending)
+  return (
+    <>
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
+      <header className="topbar">
+        <Link to="/" className="logo">
+          sketchcards
+        </Link>
+        <span className={`sync sync-${sync}`} role="status" aria-live="polite">
+          {sync === 'offline'
+            ? `Offline${pending ? ` · ${pending} unsynced` : ''}`
+            : sync === 'error'
+              ? 'Sync error'
+              : sync === 'syncing'
+                ? 'Syncing…'
+                : pending
+                  ? `${pending} unsynced`
+                  : ''}
+        </span>
+        <nav>
+          <NavLink to="/" end>
+            Decks
+          </NavLink>
+          <NavLink to="/settings">Settings</NavLink>
+        </nav>
+      </header>
+      <main id="main" className="page">
+        <Routes>
+          <Route path="/" element={<DeckList />} />
+          <Route path="/deck/:deckId" element={<DeckView />} />
+          <Route path="/deck/:deckId/new" element={<CardEditor />} />
+          <Route path="/card/:cardId" element={<CardEditor />} />
+          <Route path="/study/:deckId" element={<Study />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+    </>
+  )
 }
