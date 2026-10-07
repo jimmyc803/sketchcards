@@ -173,6 +173,15 @@ function DeckTile({ deck }: { deck: Deck }) {
         <Link className={`btn ${total ? 'primary' : ''}`} to={`/study/${deck.id}`} aria-disabled={!total}>
           Study
         </Link>
+        {cards.length > 0 && (
+          <Link
+            className="btn"
+            to={`/study/${deck.id}?mode=practice`}
+            title="Review every card without changing when they're due"
+          >
+            Practice
+          </Link>
+        )}
         <Link className="btn" to={`/deck/${deck.id}`}>
           Cards
         </Link>

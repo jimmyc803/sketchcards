@@ -357,13 +357,19 @@ button.tag[aria-pressed='true'] {
 /* ── deck list ── */
 .deck-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: 0.9rem;
 }
 .deck-tile {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
+}
+.deck-tile .row {
+  flex-wrap: nowrap;
+}
+.deck-tile .row .btn {
+  padding: 0.5rem 0.75rem;
 }
 .deck-tile h2 {
   font-size: 1.1rem;
