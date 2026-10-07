@@ -65,6 +65,9 @@ function DeckBody({ deck }: { deck: Deck }) {
         <Link className="btn primary" to={`/study/${deck.id}`}>
           Study
         </Link>
+        <Link className="btn" to={`/study/${deck.id}?mode=practice`} aria-disabled={!cards.length}>
+          Practice
+        </Link>
         <Link className="btn" to={`/deck/${deck.id}/new`}>
           Add card
         </Link>

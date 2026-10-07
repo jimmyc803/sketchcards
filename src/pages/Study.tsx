@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import CardFace from '../components/CardFace'
 import Compare from '../components/Compare'
 import DrawPad from '../components/DrawPad'
@@ -20,25 +20,29 @@ const GRADES: { grade: Grade; label: string; key: string }[] = [
 
 export default function Study() {
   const { deckId } = useParams()
+  const [params] = useSearchParams()
+  const location = useLocation()
   const deck = useData((s) => s.decks.find((d) => d.id === deckId))
   const ready = useData((s) => s.ready)
   if (!deck) return <p className="muted">{ready ? 'Deck not found.' : 'Loading…'}</p>
   if (!ready) return <p className="muted">Loading…</p>
-  return <StudySession key={deck.id} deck={deck} />
+  // Keyed by location so "Practice again" (same URL) starts a fresh session.
+  return <StudySession key={location.key} deck={deck} practice={params.get('mode') === 'practice'} />
 }
 
-function StudySession({ deck }: { deck: Deck }) {
+/**
+ * practice = quiz every card in the deck, shuffled. Missed cards still come back, but grades
+ * don't touch the schedule, so practicing never changes due dates.
+ */
+function StudySession({ deck, practice }: { deck: Deck; practice: boolean }) {
   const defaultNew = useDefaultNewPerDay()
   const [today] = useState(todayLocal)
   // The queue is fixed when the session starts; later syncs don't reshuffle it.
   const [rawSession, setSession] = useState(() => {
     const { cards, progress } = getState()
-    const queue = buildQueue({
-      cards: cards.filter((c) => c.deck_id === deck.id),
-      progress,
-      today,
-      newPerDay: deck.new_per_day ?? defaultNew,
-    })
+    const deckCards = cards.filter((c) => c.deck_id === deck.id)
+    if (practice) return S.startSession(S.shuffled(deckCards.map((c) => c.id)))
+    const queue = buildQueue({ cards: deckCards, progress, today, newPerDay: deck.new_per_day ?? defaultNew })
     return S.startSession(queue.map((c) => c.id))
   })
   const [flipped, setFlipped] = useState(false)
@@ -59,11 +63,11 @@ function StudySession({ deck }: { deck: Deck }) {
       setSession(S.gradeCurrent(session, g))
       setFlipped(false)
       setDrawing([])
-      if (S.isFirstAttempt(session, card.id)) {
+      if (!practice && S.isFirstAttempt(session, card.id)) {
         void saveProgress(gradeProgress(progress.get(card.id), g, today, { card_id: card.id, user_id: card.user_id }))
       }
     },
-    [card, flipped, session, progress, today],
+    [card, flipped, session, progress, today, practice],
   )
 
   // Keyboard: Space/Enter flips, 1/2/3 grade, O toggles overlay. The listener is attached once
@@ -99,15 +103,23 @@ function StudySession({ deck }: { deck: Deck }) {
   if (session.total === 0) {
     return (
       <div className="empty">
-        <h1>Nothing to study in {deck.name}</h1>
-        <p>No cards are due and you've reached today's new-card limit.</p>
-        <Link className="btn" to={`/deck/${deck.id}`}>
-          Back to deck
-        </Link>
+        <h1>{practice ? `${deck.name} has no cards yet` : `You're done with ${deck.name} for today`}</h1>
+        {!practice && <p>No cards are due and you've reached today's new-card limit.</p>}
+        <div className="row" style={{ justifyContent: 'center' }}>
+          {!practice && (
+            <Link className="btn primary" to={`/study/${deck.id}?mode=practice`}>
+              Practice anyway
+            </Link>
+          )}
+          <Link className="btn" to={`/deck/${deck.id}`}>
+            Back to deck
+          </Link>
+        </div>
+        {!practice && <p className="muted">Practice quizzes every card without changing when they're due.</p>}
       </div>
     )
   }
-  if (S.isDone(session)) return <Summary deck={deck} session={session} cards={cards} />
+  if (S.isDone(session)) return <Summary deck={deck} session={session} cards={cards} practice={practice} />
   if (!card) return null
 
   const first = S.isFirstAttempt(session, card.id)
@@ -115,11 +127,14 @@ function StudySession({ deck }: { deck: Deck }) {
 
   return (
     <div className="study">
-      <h1 className="sr-only">Studying {deck.name}</h1>
+      <h1 className="sr-only">
+        {practice ? 'Practicing' : 'Studying'} {deck.name}
+      </h1>
       <div className="row">
         <Link to={`/deck/${deck.id}`} className="muted">
           ← {deck.name}
         </Link>
+        {practice && <span className="tag">Practice · schedule unchanged</span>}
         <span className="spacer" />
         <span className="muted" aria-live="polite">
           {session.answered} / {session.total}
@@ -157,7 +172,7 @@ function StudySession({ deck }: { deck: Deck }) {
         <div className="grades" role="group" aria-label="How did you do?">
           {GRADES.map(({ grade: g, label, key }) => (
             <button key={g} className={`btn grade-${g}`} onClick={() => grade(g)}>
-              {label} <small>{first ? intervalLabel(schedule(prev, g).interval_days) : 'practice'} · {key}</small>
+              {label} <small>{first && !practice ? intervalLabel(schedule(prev, g).interval_days) : 'practice'} · {key}</small>
             </button>
           ))}
         </div>
@@ -206,7 +221,17 @@ function StudyCard({
   )
 }
 
-function Summary({ deck, session, cards }: { deck: Deck; session: S.Session; cards: Card[] }) {
+function Summary({
+  deck,
+  session,
+  cards,
+  practice,
+}: {
+  deck: Deck
+  session: S.Session
+  cards: Card[]
+  practice: boolean
+}) {
   const progress = useData((s) => s.progress)
   const rows = useMemo(
     () =>
@@ -220,7 +245,8 @@ function Summary({ deck, session, cards }: { deck: Deck; session: S.Session; car
   const count = (g: Grade) => rows.filter((r) => r.grade === g).length
   return (
     <div className="stack">
-      <h1>Session complete 🎉</h1>
+      <h1>{practice ? 'Practice complete' : 'Session complete'} 🎉</h1>
+      {practice && <p className="muted">Practice doesn't change your schedule; due dates below are as they were.</p>}
       <p>
         {rows.length} cards · <span className="error">{count('missed')} missed</span> · {count('close')} close ·{' '}
         {count('got')} got it
@@ -246,6 +272,9 @@ function Summary({ deck, session, cards }: { deck: Deck; session: S.Session; car
       <div className="row">
         <Link className="btn primary" to="/">
           Back to decks
+        </Link>
+        <Link className="btn" to={`/study/${deck.id}?mode=practice`}>
+          {practice ? 'Practice again' : 'Practice all cards'}
         </Link>
         <Link className="btn" to={`/deck/${deck.id}`}>
           View deck
