@@ -64,7 +64,8 @@ export default function DrawPad({
   const redrawBase = useCallback(() => paint(baseRef.current, valueRef.current, true), [paint])
 
   // Size canvases to the element × devicePixelRatio for crisp lines; repaint on resize.
-  useEffect(() => {
+  // Layout effect + an immediate call so the canvas is sized before the first paint.
+  useLayoutEffect(() => {
     const wrap = wrapRef.current
     if (!wrap) return
     const resize = () => {
@@ -81,6 +82,7 @@ export default function DrawPad({
       scaleRef.current = w / CANVAS_W
       redrawBase()
     }
+    resize()
     const ro = new ResizeObserver(resize)
     ro.observe(wrap)
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
@@ -125,7 +127,11 @@ export default function DrawPad({
     if (e.pointerType === 'mouse' && e.button !== 0) return
     if (activeRef.current) return // one stroke at a time
     e.preventDefault()
-    e.currentTarget.setPointerCapture(e.pointerId)
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      /* pointer already gone; the stroke still works without capture */
+    }
     // buttons bit 32 = the eraser end of pens that have one (Surface, Wacom).
     const erasing = tool === 'eraser' || (e.pointerType === 'pen' && (e.buttons & 32) !== 0)
     const pt = toPoint(e)

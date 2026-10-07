@@ -129,7 +129,7 @@ function StudySession({ deck }: { deck: Deck }) {
                 <div className="row">
                   <span className="spacer" />
                   <button className="btn small" aria-pressed={overlay} onClick={() => setOverlay((o) => !o)}>
-                    Overlay <span className="kbd">O</span>
+                    Overlay <span className="kbd">o</span>
                   </button>
                 </div>
               )}

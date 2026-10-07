@@ -712,3 +712,6 @@ img.bundled {
   max-height: 44px;
   max-width: 72px;
 }
+figure.board {
+  margin: 0;
+}
