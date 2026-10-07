@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import CardFace from '../components/CardFace'
+import DrawPad from '../components/DrawPad'
 import ImagePicker, { type ImageValue } from '../components/ImagePicker'
 import ModePicker from '../components/ModePicker'
 import { imageFromDataTransfer, uploadImage } from '../data/images'
@@ -224,10 +225,37 @@ function EditorBody({ deck, card }: { deck: Deck; card?: Card }) {
   )
 }
 
-/** Sketch the reference answer. (Canvas arrives with Draw mode.) */
-function BackSketch({ strokes }: { strokes: Stroke[] | null; onChange: (s: Stroke[] | null) => void }) {
-  if (!strokes?.length) return null
-  return <span className="muted">Has a sketch ({strokes.length} strokes)</span>
+/** Sketch the reference answer with the same canvas used when studying. Saved as strokes. */
+function BackSketch({ strokes, onChange }: { strokes: Stroke[] | null; onChange: (s: Stroke[] | null) => void }) {
+  const [open, setOpen] = useState(false)
+  if (!open) {
+    return (
+      <div className="row">
+        <button type="button" className="btn small" onClick={() => setOpen(true)}>
+          ✎ {strokes?.length ? 'Edit sketch' : 'Draw on back'}
+        </button>
+        {!!strokes?.length && (
+          <button type="button" className="btn small ghost" onClick={() => onChange(null)}>
+            Remove sketch
+          </button>
+        )}
+      </div>
+    )
+  }
+  return (
+    <div className="stack">
+      <DrawPad value={strokes ?? []} onChange={(s) => onChange(s.length ? s : null)} label="Reference sketch" />
+      <div className="row">
+        <span className="muted" style={{ fontSize: '0.8rem' }}>
+          Draw the answer as you'd want to see it when studying.
+        </span>
+        <span className="spacer" />
+        <button type="button" className="btn small primary" onClick={() => setOpen(false)}>
+          Done drawing
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function useObjectUrl(blob: Blob | null) {

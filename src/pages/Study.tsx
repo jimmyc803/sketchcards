@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import CardFace from '../components/CardFace'
+import Compare from '../components/Compare'
+import DrawPad from '../components/DrawPad'
 import { getState, saveProgress, useData } from '../data/store'
-import type { Card, Deck, Grade } from '../data/types'
+import type { Card, Deck, Grade, Stroke } from '../data/types'
+import { hasVisualReference } from '../lib/cards'
 import { useDefaultNewPerDay } from '../lib/prefs'
 import { gradeProgress, intervalLabel } from '../srs/grading'
 import { buildQueue } from '../srs/queue'
@@ -39,6 +42,9 @@ function StudySession({ deck }: { deck: Deck }) {
     return S.startSession(queue.map((c) => c.id))
   })
   const [flipped, setFlipped] = useState(false)
+  // The user's sketch for the current card. Never saved anywhere.
+  const [drawing, setDrawing] = useState<Stroke[]>([])
+  const [overlay, setOverlay] = useState(false)
   const cards = useData((s) => s.cards)
   const progress = useData((s) => s.progress)
   // Cards deleted mid-session (e.g. on another device) are skipped.
@@ -52,6 +58,7 @@ function StudySession({ deck }: { deck: Deck }) {
       // Advance first so a fast double-press can't grade the same card twice.
       setSession(S.gradeCurrent(session, g))
       setFlipped(false)
+      setDrawing([])
       if (S.isFirstAttempt(session, card.id)) {
         void saveProgress(gradeProgress(progress.get(card.id), g, today, { card_id: card.id, user_id: card.user_id }))
       }
@@ -66,6 +73,8 @@ function StudySession({ deck }: { deck: Deck }) {
       if (!flipped && (e.key === ' ' || e.key === 'Enter')) {
         e.preventDefault()
         setFlipped(true)
+      } else if (flipped && e.key.toLowerCase() === 'o') {
+        setOverlay((o) => !o)
       } else if (flipped) {
         const g = GRADES.find((x) => x.key === e.key)
         if (g) {
@@ -111,7 +120,28 @@ function StudySession({ deck }: { deck: Deck }) {
         <div style={{ width: `${(100 * session.answered) / session.total}%` }} />
       </div>
 
-      <StudyCard card={card} flipped={flipped} onFlip={() => setFlipped(true)} />
+      {card.answer_mode === 'draw' ? (
+        <div className="study-stage draw">
+          <StudyCard card={card} flipped={flipped} onFlip={() => setFlipped(true)} textOnlyBack />
+          {flipped ? (
+            <div className="stack">
+              {hasVisualReference(card) && (
+                <div className="row">
+                  <span className="spacer" />
+                  <button className="btn small" aria-pressed={overlay} onClick={() => setOverlay((o) => !o)}>
+                    Overlay <span className="kbd">O</span>
+                  </button>
+                </div>
+              )}
+              <Compare card={card} drawing={drawing} overlay={overlay && hasVisualReference(card)} />
+            </div>
+          ) : (
+            <DrawPad key={`${card.id}:${session.queue.length}:${session.answered}`} value={drawing} onChange={setDrawing} label="Draw your answer" />
+          )}
+        </div>
+      ) : (
+        <StudyCard card={card} flipped={flipped} onFlip={() => setFlipped(true)} />
+      )}
 
       {flipped ? (
         <div className="grades" role="group" aria-label="How did you do?">
@@ -130,7 +160,19 @@ function StudySession({ deck }: { deck: Deck }) {
   )
 }
 
-function StudyCard({ card, flipped, onFlip }: { card: Card; flipped: boolean; onFlip: () => void }) {
+function StudyCard({
+  card,
+  flipped,
+  onFlip,
+  textOnlyBack = false,
+}: {
+  card: Card
+  flipped: boolean
+  onFlip: () => void
+  /** In draw mode the visual reference is shown next to the user's drawing instead. */
+  textOnlyBack?: boolean
+}) {
+  const showBack = flipped && (!textOnlyBack || card.back_text.trim())
   return (
     <section
       className="panel study-card"
@@ -138,11 +180,15 @@ function StudyCard({ card, flipped, onFlip }: { card: Card; flipped: boolean; on
       aria-label={flipped ? 'Card, answer shown' : 'Card front. Tap to show the answer'}
     >
       <CardFace side="front" content={{ text: card.front_text, image: card.front_image }} />
-      {flipped && (
+      {showBack && (
         <div className="back">
           <CardFace
             side="back"
-            content={{ text: card.back_text, image: card.back_image, strokes: card.back_strokes }}
+            content={
+              textOnlyBack
+                ? { text: card.back_text, image: null }
+                : { text: card.back_text, image: card.back_image, strokes: card.back_strokes }
+            }
           />
         </div>
       )}
