@@ -13,3 +13,8 @@ export async function setDefaultNewPerDay(n: number) {
   const { error } = await supabase.auth.updateUser({ data: { new_per_day: n } })
   if (error) throw error
 }
+
+export async function markWelcomed() {
+  const { error } = await supabase.auth.updateUser({ data: { welcomed: true } })
+  if (error) throw error
+}

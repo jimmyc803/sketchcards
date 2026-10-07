@@ -1,9 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { prefetchImages } from './data/images'
 import { startSession, stopSession, useData } from './data/store'
 import { AuthProvider, useAuth } from './lib/auth'
 import { isConfigured } from './lib/supabase'
+import { markWelcomed } from './lib/prefs'
+import { decideWelcome } from './lib/welcome'
+import { addSampleDeck } from './io/transfer'
 import AuthScreen from './pages/AuthScreen'
 import SetupNeeded from './pages/SetupNeeded'
 import DeckList from './pages/DeckList'
@@ -45,6 +48,7 @@ function Shell() {
   const sync = useData((s) => s.sync)
   const pending = useData((s) => s.pending)
   const cards = useData((s) => s.cards)
+  useWelcomeDeck()
 
   // After each sync, quietly cache card images for offline study.
   useEffect(() => {
@@ -92,4 +96,24 @@ function Shell() {
       </main>
     </>
   )
+}
+
+/** Give brand-new accounts the Welcome sample deck, once per account. */
+function useWelcomeDeck() {
+  const { session } = useAuth()
+  const serverLoaded = useData((s) => s.serverLoaded)
+  const deckCount = useData((s) => s.decks.length)
+  const running = useRef(false)
+  const welcomed = session?.user.user_metadata?.welcomed === true
+
+  useEffect(() => {
+    const action = decideWelcome({ welcomed, serverLoaded, deckCount })
+    if (action === 'wait' || action === 'skip' || running.current) return
+    running.current = true
+    // Mark first, so a failure later can never lead to a second copy.
+    markWelcomed()
+      .then(() => (action === 'create' ? addSampleDeck() : undefined))
+      .catch((err) => console.warn('sketchcards: welcome deck skipped', err))
+      .finally(() => (running.current = false))
+  }, [welcomed, serverLoaded, deckCount])
 }

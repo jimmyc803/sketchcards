@@ -32,7 +32,7 @@ React + Vite + TypeScript, plain CSS · Supabase (Auth, Postgres, Storage) with 
 
 - **CSV**: open a deck → **Deck settings → Import CSV**. Use the columns `front,back,tags`; separate tags with `;`, and quote fields that contain commas or line breaks. You'll see a preview, with any problem rows listed, before anything is saved. CSV import creates text cards only.
 - **JSON**: **Import deck** on the Decks page accepts files from **Export deck** or **Export backup** (Settings), which include images, sketches, and scheduling progress.
-- **Sample deck**: **Add sample deck** creates a short Welcome deck that shows how flipping, grading, and drawing work.
+- **Sample deck**: new accounts start with a short Welcome deck that shows how flipping, grading, and drawing work. Delete it whenever you like; **Add sample deck** brings it back.
 
 ### Example: an amino acid Draw deck
 

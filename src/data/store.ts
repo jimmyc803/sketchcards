@@ -16,6 +16,8 @@ export type SyncStatus = 'idle' | 'syncing' | 'offline' | 'error'
 export interface DataState {
   userId: string | null
   ready: boolean
+  /** True once this session has loaded the account's data from Supabase (not just the local cache). */
+  serverLoaded: boolean
   decks: Deck[]
   cards: Card[]
   progress: Map<string, Progress>
@@ -27,6 +29,7 @@ export interface DataState {
 let state: DataState = {
   userId: null,
   ready: false,
+  serverLoaded: false,
   decks: [],
   cards: [],
   progress: new Map(),
@@ -79,7 +82,7 @@ export function stopSession() {
   document.removeEventListener('visibilitychange', onVisible)
   clearInterval(syncTimer)
   cache.closeCache()
-  set({ userId: null, ready: false, decks: [], cards: [], progress: new Map(), pending: 0, sync: 'idle' })
+  set({ userId: null, ready: false, serverLoaded: false, decks: [], cards: [], progress: new Map(), pending: 0, sync: 'idle' })
 }
 
 function onVisible() {
@@ -149,7 +152,7 @@ async function syncOnce() {
       ),
     }
     await cache.saveSnapshot(userId, merged)
-    set({ ...fromSnapshot(merged), pending: pending.length, sync: 'idle' })
+    set({ ...fromSnapshot(merged), pending: pending.length, sync: 'idle', serverLoaded: true })
   } catch (err) {
     const offline = !navigator.onLine || isNetworkError(err)
     set({ sync: offline ? 'offline' : 'error', syncError: offline ? null : messageOf(err) })
