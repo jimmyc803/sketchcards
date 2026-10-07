@@ -43,7 +43,7 @@ export default function Settings() {
     setBusy(true)
     setMsg(null)
     try {
-      downloadJson(await exportDecks(decks.map((d) => d.id)), backupFilename())
+      await downloadJson(await exportDecks(decks.map((d) => d.id)), backupFilename())
       setMsg(`Exported ${decks.length} decks. Restore with "Import deck" on the Decks page.`)
     } catch (e) {
       setMsg(`Export failed: ${e instanceof Error ? e.message : e}`)

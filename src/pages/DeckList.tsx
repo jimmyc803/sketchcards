@@ -171,7 +171,7 @@ function DeckTile({ deck }: { deck: Deck }) {
   async function exportDeck() {
     setStatus('Exporting…')
     try {
-      downloadJson(await exportDecks([deck.id]), `${safeFilename(deck.name)}.sketchcards.json`)
+      await downloadJson(await exportDecks([deck.id]), `${safeFilename(deck.name)}.sketchcards.json`)
       setStatus(null)
     } catch (e) {
       setStatus(`Export failed: ${e instanceof Error ? e.message : e}`)

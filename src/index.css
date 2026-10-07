@@ -772,3 +772,18 @@ dialog::backdrop {
 figure.board {
   margin: 0;
 }
+
+/* Touchscreens (iPad, phones): give small controls a finger-sized target (≥ 44px). */
+@media (pointer: coarse) {
+  .btn.small {
+    min-height: 44px;
+    padding-inline: 0.8rem;
+  }
+  .menu-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .menu-list button {
+    min-height: 44px;
+  }
+}

@@ -49,8 +49,30 @@ export async function exportDecks(deckIds: string[], withProgress = true): Promi
   return out
 }
 
-export function downloadJson(data: unknown, filename: string) {
+/** iPhone/iPad (iPadOS reports itself as a Mac, so also check for touch). */
+function isAppleTouchDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+}
+
+/**
+ * Save a JSON file. On iPhone/iPad this opens the share sheet ("Save to Files", AirDrop…), which
+ * also works from a home-screen app where plain downloads are unreliable. Elsewhere, or if sharing
+ * isn't possible, it downloads the file.
+ */
+export async function downloadJson(data: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(data)], { type: 'application/json' })
+  if (isAppleTouchDevice()) {
+    const file = new File([blob], filename, { type: 'application/json' })
+    if (navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] })
+        return
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return // user closed the sheet
+        // e.g. NotAllowedError when the export took too long after the tap: fall back to a download
+      }
+    }
+  }
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

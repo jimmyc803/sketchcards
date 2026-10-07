@@ -30,7 +30,7 @@ function DeckBody({ deck }: { deck: Deck }) {
   async function exportDeck() {
     setExporting(true)
     try {
-      downloadJson(await exportDecks([deck.id]), `${safeFilename(deck.name)}.sketchcards.json`)
+      await downloadJson(await exportDecks([deck.id]), `${safeFilename(deck.name)}.sketchcards.json`)
     } catch (e) {
       alert(`Export failed: ${e instanceof Error ? e.message : e}`)
     } finally {
