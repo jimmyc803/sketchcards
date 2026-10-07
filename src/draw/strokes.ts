@@ -9,7 +9,8 @@ function options(stroke: Stroke, last: boolean) {
     size: PEN_SIZE,
     thinning: stroke.pen ? 0.6 : 0.5,
     smoothing: 0.5,
-    streamline: 0.45,
+    // Less streamlining for a pen, so the live line keeps up with the Pencil tip.
+    streamline: stroke.pen ? 0.25 : 0.45,
     simulatePressure: !stroke.pen,
     last,
   }

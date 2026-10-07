@@ -644,6 +644,10 @@ dialog::backdrop {
   grid-template-columns: 1fr;
 }
 .study-stage.draw {
+  /* No text selection or callouts from a resting palm while drawing. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   align-items: start;
 }

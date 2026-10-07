@@ -29,7 +29,7 @@ export default function DrawPad({
   const valueRef = useRef(value)
   const undoRef = useRef<Stroke[][]>([])
   const redoRef = useRef<Stroke[][]>([])
-  const activeRef = useRef<{ id: number; stroke: Stroke; erasing: boolean; before: Stroke[] } | null>(null)
+  const activeRef = useRef<{ id: number; type: string; stroke: Stroke; erasing: boolean; before: Stroke[] } | null>(null)
   const penSeenRef = useRef(false)
   const frameRef = useRef(0)
   const scaleRef = useRef(1)
@@ -97,6 +97,25 @@ export default function DrawPad({
 
   useEffect(redrawBase, [value, redrawBase])
 
+  // Safari also delivers Pencil input as touch events. Claiming them on the canvas stops iPadOS
+  // from taking the stroke over (Scribble handwriting, the magnifier, scrolling), which would
+  // otherwise cancel it partway. While a stroke is in progress, a resting palm elsewhere on the
+  // page can't scroll it either. These must be non-passive listeners, so they're added by hand.
+  useEffect(() => {
+    const canvas = liveRef.current
+    if (!canvas) return
+    const claim = (e: TouchEvent) => e.preventDefault()
+    const holdPage = (e: TouchEvent) => activeRef.current && e.cancelable && e.preventDefault()
+    canvas.addEventListener('touchstart', claim, { passive: false })
+    canvas.addEventListener('touchmove', claim, { passive: false })
+    document.addEventListener('touchmove', holdPage, { passive: false })
+    return () => {
+      canvas.removeEventListener('touchstart', claim)
+      canvas.removeEventListener('touchmove', claim)
+      document.removeEventListener('touchmove', holdPage)
+    }
+  }, [])
+
   function toPoint(e: PointerEvent | React.PointerEvent): Point {
     const rect = baseRef.current!.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * CANVAS_W
@@ -125,7 +144,11 @@ export default function DrawPad({
     if (e.pointerType === 'pen') penSeenRef.current = true
     if (e.pointerType === 'touch' && penSeenRef.current) return // palm rejection
     if (e.pointerType === 'mouse' && e.button !== 0) return
-    if (activeRef.current) return // one stroke at a time
+    if (activeRef.current) {
+      // A palm that landed before the Pencil: drop its stroke and let the Pencil draw.
+      if (e.pointerType === 'pen' && activeRef.current.type === 'touch') discardActive()
+      else return // one stroke at a time
+    }
     e.preventDefault()
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
@@ -135,7 +158,13 @@ export default function DrawPad({
     // buttons bit 32 = the eraser end of pens that have one (Surface, Wacom).
     const erasing = tool === 'eraser' || (e.pointerType === 'pen' && (e.buttons & 32) !== 0)
     const pt = toPoint(e)
-    activeRef.current = { id: e.pointerId, stroke: { pen: e.pointerType === 'pen', points: [pt] }, erasing, before: valueRef.current }
+    activeRef.current = {
+      id: e.pointerId,
+      type: e.pointerType,
+      stroke: { pen: e.pointerType === 'pen', points: [pt] },
+      erasing,
+      before: valueRef.current,
+    }
     if (erasing) eraseAt(pt)
     else scheduleLive()
   }
@@ -167,10 +196,26 @@ export default function DrawPad({
     if (active.erasing) {
       if (valueRef.current !== active.before) commit(valueRef.current, active.before)
     } else {
+      // Include where the pen lifted (pressure is 0 on lift, so reuse the last sample's).
+      const pts = active.stroke.points
+      const [x, y] = toPoint(e)
+      const last = pts[pts.length - 1]
+      if (e.type === 'pointerup' && Math.hypot(x - last[0], y - last[1]) > 0.5) pts.push([x, y, last[2]])
       const next = [...valueRef.current, compactStroke(active.stroke)]
       valueRef.current = next
       commit(next, active.before)
       paint(baseRef.current, next, true) // paint now; avoids a one-frame flicker
+    }
+  }
+
+  function discardActive() {
+    const active = activeRef.current
+    activeRef.current = null
+    cancelAnimationFrame(frameRef.current)
+    paint(liveRef.current, [], true)
+    if (active?.erasing && valueRef.current !== active.before) {
+      valueRef.current = active.before
+      onChange(active.before)
     }
   }
 
@@ -251,6 +296,7 @@ export default function DrawPad({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onLostPointerCapture={onPointerUp}
           onContextMenu={(e) => e.preventDefault()}
         />
       </div>

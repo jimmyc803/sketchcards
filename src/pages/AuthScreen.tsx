@@ -17,7 +17,7 @@ export default function AuthScreen() {
       options: { emailRedirectTo: redirectUrl() },
     })
     setBusy(false)
-    if (error) setError(error.message)
+    if (error) setError(friendlyEmailError(error))
     else setSent(true)
   }
 
@@ -103,4 +103,12 @@ export default function AuthScreen() {
       </div>
     </main>
   )
+}
+
+/** Supabase's built-in email service only sends a few emails per hour on the free plan. */
+function friendlyEmailError(error: { message: string; status?: number }) {
+  if (error.status === 429 || /rate limit/i.test(error.message)) {
+    return 'Too many sign-in emails have been sent in the last hour, so email links are paused for a bit. Use "Continue with Google" instead, or try email again in about an hour.'
+  }
+  return error.message
 }
