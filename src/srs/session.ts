@@ -41,3 +41,11 @@ export function gradeCurrent(s: Session, grade: Grade): Session {
 export function isDone(s: Session) {
   return s.queue.length === 0
 }
+
+/** Drop cards that no longer exist. Returns the same object when nothing changed. */
+export function keepOnly(s: Session, existing: Set<string>): Session {
+  if (s.queue.every((id) => existing.has(id))) return s
+  const queue = s.queue.filter((id) => existing.has(id))
+  const dropped = new Set(s.queue.filter((id) => !existing.has(id)))
+  return { ...s, queue, total: s.total - [...dropped].filter((id) => !(id in s.firstGrade)).length }
+}

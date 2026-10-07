@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { current, gradeCurrent, isDone, isFirstAttempt, startSession } from './session'
+import { current, gradeCurrent, isDone, isFirstAttempt, keepOnly, startSession } from './session'
 
 describe('study session', () => {
   it('advances on got/close', () => {
@@ -29,5 +29,13 @@ describe('study session', () => {
     expect(isDone(s)).toBe(true)
     // only the first grade counts for scheduling
     expect(s.firstGrade).toEqual({ a: 'missed' })
+  })
+
+  it('skips cards deleted mid-session', () => {
+    const s = startSession(['a', 'b', 'c'])
+    expect(keepOnly(s, new Set(['a', 'b', 'c']))).toBe(s)
+    const t = keepOnly(s, new Set(['a', 'c']))
+    expect(t.queue).toEqual(['a', 'c'])
+    expect(t.total).toBe(2)
   })
 })
