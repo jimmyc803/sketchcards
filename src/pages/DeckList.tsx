@@ -1,12 +1,13 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { makeDeck, saveDeck, useData } from '../data/store'
+import { deleteDeck, makeDeck, saveDeck, useData } from '../data/store'
 import type { Deck } from '../data/types'
 import ModePicker from '../components/ModePicker'
 import { useDefaultNewPerDay } from '../lib/prefs'
 import { deckCounts } from '../srs/queue'
 import { todayLocal } from '../srs/scheduler'
-import { addSampleDeck, importDeckFile } from '../io/transfer'
+import { addSampleDeck, downloadJson, exportDecks, importDeckFile, safeFilename } from '../io/transfer'
+import DeckMenu from '../components/DeckMenu'
 
 export default function DeckList() {
   const decks = useData((s) => s.decks)
@@ -156,12 +157,66 @@ function DeckTile({ deck }: { deck: Deck }) {
     newPerDay: deck.new_per_day ?? defaultNew,
   })
   const total = due + newCount
+  const [renaming, setRenaming] = useState(false)
+  const [name, setName] = useState(deck.name)
+  const [status, setStatus] = useState<string | null>(null)
+
+  function finishRename(save: boolean) {
+    const next = name.trim()
+    if (save && next && next !== deck.name) void saveDeck({ ...deck, name: next })
+    else setName(deck.name)
+    setRenaming(false)
+  }
+
+  async function exportDeck() {
+    setStatus('Exporting…')
+    try {
+      downloadJson(await exportDecks([deck.id]), `${safeFilename(deck.name)}.sketchcards.json`)
+      setStatus(null)
+    } catch (e) {
+      setStatus(`Export failed: ${e instanceof Error ? e.message : e}`)
+    }
+  }
+
+  function remove() {
+    const what = cards.length ? `"${deck.name}" and its ${cards.length} card${cards.length === 1 ? '' : 's'}` : `"${deck.name}"`
+    if (confirm(`Delete ${what}? This can't be undone. (Tip: Export first to keep a copy.)`)) void deleteDeck(deck.id)
+  }
 
   return (
     <article className="panel deck-tile">
-      <h2>
-        <Link to={`/deck/${deck.id}`}>{deck.name}</Link>
-      </h2>
+      <div className="deck-tile-head">
+        {renaming ? (
+          <input
+            autoFocus
+            aria-label="Deck name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => finishRename(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') finishRename(true)
+              if (e.key === 'Escape') finishRename(false)
+            }}
+          />
+        ) : (
+          <h2>
+            <Link to={`/deck/${deck.id}`}>{deck.name}</Link>
+          </h2>
+        )}
+        <DeckMenu
+          label={`More actions for ${deck.name}`}
+          items={[
+            { label: 'Rename', onSelect: () => (setName(deck.name), setRenaming(true)) },
+            { label: 'Export (JSON)', onSelect: () => void exportDeck() },
+            { label: 'Delete deck…', onSelect: remove, danger: true },
+          ]}
+        />
+      </div>
+      {status && (
+        <p className="muted" role="status" style={{ margin: 0, fontSize: '0.85rem' }}>
+          {status}
+        </p>
+      )}
       <div className="due">
         <strong>{total}</strong> <span className="muted">to study today</span>
         <div className="muted" style={{ fontSize: '0.85rem' }}>

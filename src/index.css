@@ -371,6 +371,60 @@ button.tag[aria-pressed='true'] {
 .deck-tile .row .btn {
   padding: 0.5rem 0.75rem;
 }
+.deck-tile-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.deck-tile-head h2,
+.deck-tile-head input {
+  flex: 1;
+  min-width: 0;
+}
+.deck-tile-head h2 {
+  overflow-wrap: anywhere;
+}
+.menu {
+  position: relative;
+}
+.menu-button {
+  font-size: 1.2rem;
+  line-height: 1;
+  min-width: 36px;
+}
+.menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 10;
+  min-width: 170px;
+  display: flex;
+  flex-direction: column;
+  padding: 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 18%);
+}
+.menu-list button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 40px;
+}
+.menu-list button:hover,
+.menu-list button:focus-visible {
+  background: var(--surface-2);
+}
+.menu-list button.danger {
+  color: var(--danger);
+}
 .deck-tile h2 {
   font-size: 1.1rem;
   margin: 0;
