@@ -202,8 +202,12 @@ async function write(op: OutboxOp) {
   syncSoon()
 }
 
+let lastStamp = 0
+
+/** Strictly increasing timestamps, so cards created in a burst keep their order and edits never tie. */
 export function now() {
-  return new Date().toISOString()
+  lastStamp = Math.max(Date.now(), lastStamp + 1)
+  return new Date(lastStamp).toISOString()
 }
 
 export function newId() {
@@ -325,7 +329,7 @@ export async function moveCard(card: Card, deckId: string) {
   return saveCard({ ...card, deck_id: deckId })
 }
 
-/** Storage paths look like "<uid>/<file>"; URLs and bundled "/starter/..." assets are left alone. */
+/** Storage paths look like "<uid>/<file>"; plain URLs and data: URLs are left alone. */
 export function isStoragePath(p: string) {
   return !p.startsWith('/') && !/^[a-z]+:/i.test(p)
 }

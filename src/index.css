@@ -518,14 +518,11 @@ dialog::backdrop {
   max-width: 520px;
   color: var(--ink);
 }
-img.bundled {
-  background: transparent;
-}
-:root[data-theme='dark'] img.bundled {
+:root[data-theme='dark'] img.svg-art {
   filter: invert(1) hue-rotate(180deg);
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) img.bundled {
+  :root:not([data-theme='light']) img.svg-art {
     filter: invert(1) hue-rotate(180deg);
   }
 }

@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import CardImage from '../components/CardImage'
+import CsvImport from '../components/CsvImport'
 import ModePicker from '../components/ModePicker'
 import { deleteCard, deleteDeck, duplicateCard, moveCard, saveDeck, useData } from '../data/store'
 import type { Card, Deck } from '../data/types'
 import { useDefaultNewPerDay } from '../lib/prefs'
+import { downloadJson, exportDecks, safeFilename } from '../io/transfer'
 
 export default function DeckView() {
   const { deckId } = useParams()
@@ -21,7 +23,20 @@ function DeckBody({ deck }: { deck: Deck }) {
   const [tagFilter, setTagFilter] = useState<string[]>([])
   const [search, setSearch] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [csvOpen, setCsvOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const navigate = useNavigate()
+
+  async function exportDeck() {
+    setExporting(true)
+    try {
+      downloadJson(await exportDecks([deck.id]), `${safeFilename(deck.name)}.sketchcards.json`)
+    } catch (e) {
+      alert(`Export failed: ${e instanceof Error ? e.message : e}`)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const cards = useMemo(
     () => allCards.filter((c) => c.deck_id === deck.id).sort((a, b) => a.created_at.localeCompare(b.created_at)),
@@ -58,7 +73,17 @@ function DeckBody({ deck }: { deck: Deck }) {
         </button>
       </div>
 
-      {settingsOpen && <DeckSettings deck={deck} onDelete={removeDeck} />}
+      {settingsOpen && (
+        <DeckSettings deck={deck} onDelete={removeDeck}>
+          <button className="btn" onClick={() => setCsvOpen(true)}>
+            Import CSV
+          </button>
+          <button className="btn" onClick={exportDeck} disabled={exporting}>
+            {exporting ? 'Exporting…' : 'Export deck (JSON)'}
+          </button>
+        </DeckSettings>
+      )}
+      {csvOpen && <CsvImport deck={deck} onClose={() => setCsvOpen(false)} />}
 
       <div className="row" style={{ marginBottom: '0.75rem' }}>
         <input
@@ -104,7 +129,7 @@ function DeckBody({ deck }: { deck: Deck }) {
   )
 }
 
-function DeckSettings({ deck, onDelete }: { deck: Deck; onDelete: () => void }) {
+function DeckSettings({ deck, onDelete, children }: { deck: Deck; onDelete: () => void; children: ReactNode }) {
   const defaultNew = useDefaultNewPerDay()
   const [name, setName] = useState(deck.name)
   return (
@@ -139,6 +164,7 @@ function DeckSettings({ deck, onDelete }: { deck: Deck; onDelete: () => void }) 
         <span className="muted">New cards default to</span>
         <ModePicker value={deck.default_answer_mode} onChange={(m) => saveDeck({ ...deck, default_answer_mode: m })} />
         <span className="spacer" />
+        {children}
         <button className="btn danger" onClick={onDelete}>
           Delete deck
         </button>

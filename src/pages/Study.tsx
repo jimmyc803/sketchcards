@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import CardFace from '../components/CardFace'
 import Compare from '../components/Compare'
@@ -66,12 +66,20 @@ function StudySession({ deck }: { deck: Deck }) {
     [card, flipped, session, progress, today],
   )
 
+  // Keyboard: Space/Enter flips, 1/2/3 grade, O toggles overlay. The listener is attached once
+  // and reads the latest state through a ref, so fast key presses never hit stale state.
+  const keyState = useRef({ flipped, grade })
+  useLayoutEffect(() => {
+    keyState.current = { flipped, grade }
+  })
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select')) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
+      const { flipped, grade } = keyState.current
       if (!flipped && (e.key === ' ' || e.key === 'Enter')) {
         e.preventDefault()
+        keyState.current = { ...keyState.current, flipped: true }
         setFlipped(true)
       } else if (flipped && e.key.toLowerCase() === 'o') {
         setOverlay((o) => !o)
@@ -79,13 +87,14 @@ function StudySession({ deck }: { deck: Deck }) {
         const g = GRADES.find((x) => x.key === e.key)
         if (g) {
           e.preventDefault()
+          keyState.current = { ...keyState.current, flipped: false }
           grade(g.grade)
         }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [flipped, grade])
+  }, [])
 
   if (session.total === 0) {
     return (

@@ -7,7 +7,8 @@ interface CacheSchema extends DBSchema {
   cards: { key: string; value: Card }
   progress: { key: string; value: Progress }
   outbox: { key: number; value: OutboxOp }
-  images: { key: string; value: Blob }
+  // Bytes + type rather than Blob: some Safari setups can't store Blobs in IndexedDB.
+  images: { key: string; value: { type: string; data: ArrayBuffer } }
   meta: { key: string; value: unknown }
 }
 
@@ -99,12 +100,22 @@ export async function deleteOutboxOp(userId: string, seq: number) {
   await (await db(userId)).delete('outbox', seq)
 }
 
-export async function getCachedImage(userId: string, path: string) {
-  return (await db(userId)).get('images', path)
+export async function getCachedImage(userId: string, path: string): Promise<Blob | undefined> {
+  try {
+    const hit = await (await db(userId)).get('images', path)
+    return hit && new Blob([hit.data], { type: hit.type })
+  } catch {
+    return undefined
+  }
 }
 
+/** Best effort: a failed cache write never breaks showing the image. */
 export async function putCachedImage(userId: string, path: string, blob: Blob) {
-  return (await db(userId)).put('images', blob, path)
+  try {
+    await (await db(userId)).put('images', { type: blob.type, data: await blob.arrayBuffer() }, path)
+  } catch (err) {
+    console.warn('sketchcards: could not cache image offline', err)
+  }
 }
 
 export async function deleteCachedImage(userId: string, path: string) {

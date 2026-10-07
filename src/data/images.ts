@@ -89,7 +89,10 @@ export function useImage(ref: string | null | undefined) {
     let alive = true
     resolveImage(ref).then(
       (src) => alive && setLoaded({ ref, src, failed: false }),
-      () => alive && setLoaded({ ref, src: null, failed: true }),
+      (err) => {
+        console.warn('sketchcards: image failed to load', ref, err)
+        if (alive) setLoaded({ ref, src: null, failed: true })
+      },
     )
     return () => {
       alive = false
