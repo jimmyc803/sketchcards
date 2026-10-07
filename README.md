@@ -15,12 +15,12 @@ Sketch the answer from memory, flip, and compare. Spaced repetition decides what
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/decks.png" alt="Deck list" /><br /><sub><b>Your decks, synced</b>: build on a laptop, study on an iPad.</sub></td>
-    <td width="50%"><img src="docs/editor.png" alt="Card editor with a sketched answer" /><br /><sub><b>Sketch the answer</b> right on the card, in color.</sub></td>
+    <td width="50%" valign="top"><img src="docs/decks.png" alt="Deck list" /><br /><sub><b>Your decks, synced</b>: build on a laptop, study on an iPad.</sub></td>
+    <td width="50%" valign="top"><img src="docs/editor.png" alt="Card editor with a sketched answer" /><br /><sub><b>Sketch the answer</b> right on the card, in color.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/dark.png" alt="Comparing a drawing with the reference in dark mode" /><br /><sub><b>Draw, flip, compare</b>, side by side or overlaid. Light or dark.</sub></td>
-    <td width="50%"><img src="docs/toolbar.png" alt="Drawing toolbar with the color menu open on dot paper" /><br /><sub><b>Made for Apple Pencil</b>: pressure, palm rejection, colors, paper.</sub></td>
+    <td width="50%" valign="top"><img src="docs/dark.png" alt="Comparing a drawing with the reference in dark mode" /><br /><sub><b>Draw, flip, compare</b>, side by side or overlaid. Light or dark.</sub></td>
+    <td width="50%" valign="top"><img src="docs/toolbar.png" alt="Drawing toolbar with the color menu open on dot paper" /><br /><sub><b>Made for Apple Pencil</b>: pressure, palm rejection, colors, paper.</sub></td>
   </tr>
 </table>
 
