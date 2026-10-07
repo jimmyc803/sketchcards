@@ -9,7 +9,8 @@ import { applyTheme, getTheme, type Theme } from '../lib/theme'
 
 const SHORTCUTS: [string, string][] = [
   ['Space / Enter', 'Show answer'],
-  ['1 / 2 / 3', 'Missed / Close / Got it'],
+  ['1 / 2 / 3', 'Missed / Close / Got it (Study)'],
+  ['1 / 2', 'Again / Got it (Practice)'],
   ['O', 'Toggle overlay (Draw cards)'],
   ['⌘Z / ⇧⌘Z', 'Undo / redo a stroke'],
   ['⌘↵', 'Save & add another (card editor)'],

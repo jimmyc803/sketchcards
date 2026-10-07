@@ -12,10 +12,22 @@ import { buildQueue } from '../srs/queue'
 import { schedule, NEW_CARD, todayLocal } from '../srs/scheduler'
 import * as S from '../srs/session'
 
-const GRADES: { grade: Grade; label: string; key: string }[] = [
-  { grade: 'missed', label: 'Missed', key: '1' },
-  { grade: 'close', label: 'Close', key: '2' },
-  { grade: 'got', label: 'Got it', key: '3' },
+interface GradeButton {
+  grade: Grade
+  label: string
+  keys: string[]
+}
+
+const GRADES: GradeButton[] = [
+  { grade: 'missed', label: 'Missed', keys: ['1'] },
+  { grade: 'close', label: 'Close', keys: ['2'] },
+  { grade: 'got', label: 'Got it', keys: ['3'] },
+]
+
+/** Practice doesn't schedule anything, so it only needs "show me this again" or "next". */
+const PRACTICE_GRADES: GradeButton[] = [
+  { grade: 'missed', label: 'Again', keys: ['1'] },
+  { grade: 'got', label: 'Got it', keys: ['2', '3'] },
 ]
 
 export default function Study() {
@@ -27,21 +39,28 @@ export default function Study() {
   if (!deck) return <p className="muted">{ready ? 'Deck not found.' : 'Loading…'}</p>
   if (!ready) return <p className="muted">Loading…</p>
   // Keyed by location so "Practice again" (same URL) starts a fresh session.
-  return <StudySession key={location.key} deck={deck} practice={params.get('mode') === 'practice'} />
+  const only = params.get('cards')?.split(',').filter(Boolean)
+  return (
+    <StudySession key={location.key} deck={deck} practice={params.get('mode') === 'practice'} only={only} />
+  )
 }
 
 /**
  * practice = quiz every card in the deck, shuffled. Missed cards still come back, but grades
  * don't touch the schedule, so practicing never changes due dates.
  */
-function StudySession({ deck, practice }: { deck: Deck; practice: boolean }) {
+function StudySession({ deck, practice, only }: { deck: Deck; practice: boolean; only?: string[] }) {
+  const buttons = practice ? PRACTICE_GRADES : GRADES
   const defaultNew = useDefaultNewPerDay()
   const [today] = useState(todayLocal)
   // The queue is fixed when the session starts; later syncs don't reshuffle it.
   const [rawSession, setSession] = useState(() => {
     const { cards, progress } = getState()
     const deckCards = cards.filter((c) => c.deck_id === deck.id)
-    if (practice) return S.startSession(S.shuffled(deckCards.map((c) => c.id)))
+    if (practice) {
+      const pool = only ? deckCards.filter((c) => only.includes(c.id)) : deckCards
+      return S.startSession(S.shuffled(pool.map((c) => c.id)))
+    }
     const queue = buildQueue({ cards: deckCards, progress, today, newPerDay: deck.new_per_day ?? defaultNew })
     return S.startSession(queue.map((c) => c.id))
   })
@@ -72,15 +91,15 @@ function StudySession({ deck, practice }: { deck: Deck; practice: boolean }) {
 
   // Keyboard: Space/Enter flips, 1/2/3 grade, O toggles overlay. The listener is attached once
   // and reads the latest state through a ref, so fast key presses never hit stale state.
-  const keyState = useRef({ flipped, grade })
+  const keyState = useRef({ flipped, grade, buttons })
   useLayoutEffect(() => {
-    keyState.current = { flipped, grade }
+    keyState.current = { flipped, grade, buttons }
   })
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLElement && e.target.closest('input, textarea, select')) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
-      const { flipped, grade } = keyState.current
+      const { flipped, grade, buttons } = keyState.current
       if (!flipped && (e.key === ' ' || e.key === 'Enter')) {
         e.preventDefault()
         keyState.current = { ...keyState.current, flipped: true }
@@ -88,7 +107,7 @@ function StudySession({ deck, practice }: { deck: Deck; practice: boolean }) {
       } else if (flipped && e.key.toLowerCase() === 'o') {
         setOverlay((o) => !o)
       } else if (flipped) {
-        const g = GRADES.find((x) => x.key === e.key)
+        const g = buttons.find((x) => x.keys.includes(e.key))
         if (g) {
           e.preventDefault()
           keyState.current = { ...keyState.current, flipped: false }
@@ -169,10 +188,20 @@ function StudySession({ deck, practice }: { deck: Deck; practice: boolean }) {
       )}
 
       {flipped ? (
-        <div className="grades" role="group" aria-label="How did you do?">
-          {GRADES.map(({ grade: g, label, key }) => (
+        <div className={`grades ${practice ? 'grades-2' : ''}`} role="group" aria-label="How did you do?">
+          {buttons.map(({ grade: g, label, keys }) => (
             <button key={g} className={`btn grade-${g}`} onClick={() => grade(g)}>
-              {label} <small>{first && !practice ? intervalLabel(schedule(prev, g).interval_days) : 'practice'} · {key}</small>
+              {label}{' '}
+              <small>
+                {practice
+                  ? g === 'missed'
+                    ? 'see it again soon'
+                    : 'next card'
+                  : first
+                    ? intervalLabel(schedule(prev, g).interval_days)
+                    : 'retry'}{' '}
+                · {keys[0]}
+              </small>
             </button>
           ))}
         </div>
@@ -243,10 +272,49 @@ function Summary({
     [session.firstGrade, cards, progress],
   )
   const count = (g: Grade) => rows.filter((r) => r.grade === g).length
+  const againIds = rows.filter((r) => r.grade === 'missed' && r.card).map((r) => r.card!.id)
+
+  if (practice) {
+    return (
+      <div className="stack">
+        <h1>Practice complete 🎉</h1>
+        <p>
+          {count('got')} of {rows.length} right on the first try
+          {againIds.length > 0 && <> · {againIds.length} needed another go</>}.{' '}
+          <span className="muted">Your schedule wasn't changed.</span>
+        </p>
+        {againIds.length > 0 && (
+          <>
+            <h2 style={{ fontSize: '1rem' }}>Needed another go</h2>
+            <ul className="stack" style={{ margin: 0, paddingLeft: '1.2rem', gap: '0.25rem' }}>
+              {rows
+                .filter((r) => r.grade === 'missed')
+                .map((r, i) => (
+                  <li key={i}>{r.card?.front_text.split('\n')[0] || '(image)'}</li>
+                ))}
+            </ul>
+          </>
+        )}
+        <div className="row">
+          {againIds.length > 0 && (
+            <Link className="btn primary" to={`/study/${deck.id}?mode=practice&cards=${againIds.join(',')}`}>
+              Practice just {againIds.length === 1 ? 'that one' : `those ${againIds.length}`}
+            </Link>
+          )}
+          <Link className={`btn ${againIds.length ? '' : 'primary'}`} to={`/study/${deck.id}?mode=practice`}>
+            Practice all again
+          </Link>
+          <Link className="btn" to="/">
+            Back to decks
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="stack">
-      <h1>{practice ? 'Practice complete' : 'Session complete'} 🎉</h1>
-      {practice && <p className="muted">Practice doesn't change your schedule; due dates below are as they were.</p>}
+      <h1>Session complete 🎉</h1>
       <p>
         {rows.length} cards · <span className="error">{count('missed')} missed</span> · {count('close')} close ·{' '}
         {count('got')} got it
@@ -274,7 +342,7 @@ function Summary({
           Back to decks
         </Link>
         <Link className="btn" to={`/study/${deck.id}?mode=practice`}>
-          {practice ? 'Practice again' : 'Practice all cards'}
+          Practice all cards
         </Link>
         <Link className="btn" to={`/deck/${deck.id}`}>
           View deck
