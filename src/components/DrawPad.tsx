@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { CANVAS_H, CANVAS_W, type Point, type Stroke } from '../data/types'
+import { notePenActivity } from '../draw/penActivity'
 import { compactStroke, hitsStroke, strokePath } from '../draw/strokes'
 
 type Tool = 'pen' | 'eraser'
@@ -141,7 +142,10 @@ export default function DrawPad({
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (e.pointerType === 'pen') penSeenRef.current = true
+    if (e.pointerType === 'pen') {
+      penSeenRef.current = true
+      notePenActivity()
+    }
     if (e.pointerType === 'touch' && penSeenRef.current) return // palm rejection
     if (e.pointerType === 'mouse' && e.button !== 0) return
     if (activeRef.current) {
@@ -173,6 +177,7 @@ export default function DrawPad({
     const active = activeRef.current
     if (!active || e.pointerId !== active.id) return
     e.preventDefault()
+    if (e.pointerType === 'pen') notePenActivity()
     const events = e.nativeEvent.getCoalescedEvents?.() ?? []
     const pts = (events.length ? events : [e.nativeEvent]).map(toPoint)
     if (active.erasing) pts.forEach(eraseAt)
@@ -183,6 +188,7 @@ export default function DrawPad({
   }
 
   function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (e.pointerType === 'pen') notePenActivity()
     const active = activeRef.current
     if (!active || e.pointerId !== active.id) return
     activeRef.current = null

@@ -794,3 +794,20 @@ figure.board {
     min-height: 44px;
   }
 }
+
+/* Buttons are never text: no selection or "Copy / Look Up" callout on long-press. */
+.btn,
+.segmented button,
+.menu-list button,
+.tag,
+.kbd {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* While studying, a resting palm shouldn't select text anywhere on the page. */
+.study {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}

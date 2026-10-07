@@ -6,6 +6,7 @@ import DrawPad from '../components/DrawPad'
 import { getState, saveProgress, useData } from '../data/store'
 import type { Card, Deck, Grade, Stroke } from '../data/types'
 import { hasVisualReference } from '../lib/cards'
+import { penRecentlyActive } from '../draw/penActivity'
 import { useDefaultNewPerDay } from '../lib/prefs'
 import { gradeProgress, intervalLabel } from '../srs/grading'
 import { buildQueue } from '../srs/queue'
@@ -118,6 +119,30 @@ function StudySession({ deck, practice, only }: { deck: Deck; practice: boolean;
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // Palm guard: while drawing, a resting palm can "tap" Show answer, a grade button, or the
+  // prompt card. Ignore finger taps on the study page right after Pencil use; Pencil taps,
+  // mouse clicks and the keyboard are unaffected.
+  const isDraw = card?.answer_mode === 'draw'
+  useEffect(() => {
+    if (!isDraw) return
+    let lastType = ''
+    const onDown = (e: PointerEvent) => (lastType = e.pointerType)
+    const onClick = (e: MouseEvent) => {
+      const inStudy = e.target instanceof Element && e.target.closest('.study')
+      const isDrawingTool = e.target instanceof Element && e.target.closest('.drawpad-tools')
+      if (inStudy && !isDrawingTool && lastType === 'touch' && penRecentlyActive()) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+    window.addEventListener('pointerdown', onDown, true)
+    window.addEventListener('click', onClick, true)
+    return () => {
+      window.removeEventListener('pointerdown', onDown, true)
+      window.removeEventListener('click', onClick, true)
+    }
+  }, [isDraw])
 
   if (session.total === 0) {
     return (
