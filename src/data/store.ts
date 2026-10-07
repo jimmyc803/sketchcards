@@ -269,12 +269,60 @@ export async function saveProgress(p: Progress) {
 
 /** Delete uploaded images no remaining card references (duplicated cards share images). */
 async function releaseImages(removed: Card[]) {
+  await releaseImagePaths(removed.flatMap((c) => [c.front_image, c.back_image]))
+}
+
+export async function releaseImagePaths(paths: (string | null | undefined)[]) {
   const inUse = new Set(state.cards.flatMap((c) => [c.front_image, c.back_image]))
-  const orphans = removed
-    .flatMap((c) => [c.front_image, c.back_image])
-    .filter((p): p is string => !!p && isStoragePath(p) && !inUse.has(p))
-  if (orphans.length === 0) return
+  const orphans = paths.filter((p): p is string => !!p && isStoragePath(p) && !inUse.has(p))
+  if (orphans.length === 0 || !navigator.onLine) return
   await supabase.storage.from('card-images').remove([...new Set(orphans)])
+}
+
+// ───────────────────────── factories ─────────────────────────
+
+export function makeDeck(name: string, mode: Deck['default_answer_mode'] = 'flip'): Deck {
+  const t = now()
+  return {
+    id: newId(),
+    user_id: state.userId!,
+    name,
+    default_answer_mode: mode,
+    new_per_day: null,
+    created_at: t,
+    updated_at: t,
+  }
+}
+
+export function makeCard(deckId: string, fields: Partial<Card> = {}): Card {
+  const t = now()
+  return {
+    id: newId(),
+    deck_id: deckId,
+    user_id: state.userId!,
+    front_text: '',
+    front_image: null,
+    back_text: '',
+    back_image: null,
+    back_strokes: null,
+    answer_mode: 'flip',
+    tags: [],
+    ...fields,
+    created_at: t,
+    updated_at: t,
+  }
+}
+
+export async function duplicateCard(card: Card) {
+  const { id: _id, created_at: _c, updated_at: _u, ...rest } = card
+  void _id
+  void _c
+  void _u
+  return saveCard(makeCard(card.deck_id, rest))
+}
+
+export async function moveCard(card: Card, deckId: string) {
+  return saveCard({ ...card, deck_id: deckId })
 }
 
 /** Storage paths look like "<uid>/<file>"; URLs and bundled "/starter/..." assets are left alone. */

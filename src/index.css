@@ -708,3 +708,7 @@ img.bundled {
     animation: none !important;
   }
 }
+.card-row .image-thumb {
+  max-height: 44px;
+  max-width: 72px;
+}

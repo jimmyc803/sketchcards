@@ -49,7 +49,7 @@ describe('compactOutbox', () => {
       ['decks', 'deck', 1],
       ['cards', 'card', 2],
     ])
-    expect((out[0] as { row: Row }).row.v).toBe('v2')
+    expect((out[0] as unknown as { row: Row }).row.v).toBe('v2')
   })
 
   it('a delete replaces earlier upserts of the same row', () => {
