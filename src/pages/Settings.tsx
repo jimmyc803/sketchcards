@@ -143,7 +143,9 @@ export default function Settings() {
       </section>
 
       <section className="panel row" aria-label="Account">
-        <span className="muted">Signed in as {session?.user.email}</span>
+        <span className="muted">
+          Signed in as {session?.user.email} · <a href="/privacy">Privacy policy</a>
+        </span>
         <span className="spacer" />
         <button className="btn" onClick={signOut}>
           Sign out

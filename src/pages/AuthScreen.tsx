@@ -92,6 +92,9 @@ export default function AuthScreen() {
         <button className="btn" onClick={google}>
           Continue with Google
         </button>
+        <p className="muted" style={{ fontSize: '0.8rem', textAlign: 'center', margin: '1.25rem 0 0' }}>
+          <a href="/privacy">Privacy policy</a>
+        </p>
         {error && (
           <p className="error" role="alert">
             {error}

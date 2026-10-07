@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { prefetchImages } from './data/images'
 import { startSession, stopSession, useData } from './data/store'
 import { AuthProvider, useAuth } from './lib/auth'
@@ -11,6 +11,7 @@ import DeckView from './pages/DeckView'
 import CardEditor from './pages/CardEditor'
 import Study from './pages/Study'
 import Settings from './pages/Settings'
+import Privacy from './pages/Privacy'
 
 export default function App() {
   if (!isConfigured) return <SetupNeeded />
@@ -25,6 +26,7 @@ export default function App() {
 
 function Gate() {
   const { session, loading } = useAuth()
+  const { pathname } = useLocation()
   const userId = session?.user.id
 
   useEffect(() => {
@@ -32,6 +34,8 @@ function Gate() {
     else stopSession()
   }, [userId])
 
+  // The privacy policy is public: Google's consent screen links to it.
+  if (pathname === '/privacy') return <Privacy />
   if (loading) return <div className="center muted">Loading…</div>
   if (!session) return <AuthScreen />
   return <Shell />
