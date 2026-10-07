@@ -20,7 +20,7 @@ Sketch the answer from memory, flip, and compare. Spaced repetition decides what
   </tr>
   <tr>
     <td width="50%" valign="top"><img src="docs/dark.png" alt="Comparing a drawing with the reference in dark mode" /><br /><sub><b>Draw, flip, compare</b>, side by side or overlaid. Light or dark.</sub></td>
-    <td width="50%" valign="top"><img src="docs/toolbar.png" alt="Drawing toolbar with the color menu open on dot paper" /><br /><sub><b>Made for Apple Pencil</b>: pressure, palm rejection, colors, paper.</sub></td>
+    <td width="50%" valign="top"><img src="docs/toolbar.png" alt="Drawing a structure on grid paper with the color menu open" /><br /><sub><b>Made for Apple Pencil</b>: pressure, palm rejection, colors, paper.</sub></td>
   </tr>
 </table>
 
