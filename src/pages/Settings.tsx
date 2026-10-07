@@ -143,6 +143,10 @@ export default function Settings() {
         </table>
       </section>
 
+      <p className="muted" style={{ fontSize: '0.8rem', margin: 0 }}>
+        Version {new Date(__BUILD_ID__).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+      </p>
+
       <section className="panel row" aria-label="Account">
         <span className="muted">
           Signed in as {session?.user.email} · <a href="/privacy">Privacy policy</a>

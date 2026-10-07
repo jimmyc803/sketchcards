@@ -9,6 +9,7 @@ import { decideWelcome } from './lib/welcome'
 import { addSampleDeck } from './io/transfer'
 import AuthScreen from './pages/AuthScreen'
 import SetupNeeded from './pages/SetupNeeded'
+import UpdatePrompt from './components/UpdatePrompt'
 import DeckList from './pages/DeckList'
 import DeckView from './pages/DeckView'
 import CardEditor from './pages/CardEditor'
@@ -22,6 +23,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Gate />
+        <UpdatePrompt />
       </BrowserRouter>
     </AuthProvider>
   )
