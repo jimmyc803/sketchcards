@@ -73,3 +73,10 @@ export function PaperIcon({ kind }: { kind: 'blank' | 'lined' | 'grid' | 'dots' 
     </Icon>
   )
 }
+
+/** Streak flame (filled, takes the current text color). */
+export const FlameIcon = ({ size = 18 }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true" focusable="false">
+    <path d="M12.8 2.3c.3 2.6-.9 4.3-2.2 5.8C9.2 9.7 7.5 11.4 7.5 14.3A4.6 4.6 0 0012 19a4.6 4.6 0 004.5-4.7c0-1.3-.4-2.4-1-3.3.1 1.2-.4 2.3-1.4 2.7.3-2.9-.6-5.3-1.3-6.8 2.9 1.4 5.7 4.2 5.7 8.1A6.5 6.5 0 0112 21.5a6.5 6.5 0 01-6.5-6.6c0-3.5 2-5.6 3.6-7.3 1.3-1.4 2.5-2.7 2.5-4.6 0-.3.9-.9 1.2-.7z" />
+  </svg>
+)

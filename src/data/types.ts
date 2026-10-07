@@ -56,21 +56,36 @@ export interface Progress {
   updated_at: string
 }
 
-export type TableName = 'decks' | 'cards' | 'progress'
+/** One graded card, for streaks and the activity calendar. Insert-only. */
+export interface Review {
+  id: string
+  user_id: string
+  card_id: string
+  deck_id: string
+  grade: Grade
+  mode: 'study' | 'practice'
+  /** the user's local day, YYYY-MM-DD */
+  reviewed_on: string
+  reviewed_at: string
+}
+
+export type TableName = 'decks' | 'cards' | 'progress' | 'reviews'
 
 export interface TableRow {
   decks: Deck
   cards: Card
   progress: Progress
+  reviews: Review
 }
 
 export const PRIMARY_KEY: Record<TableName, string> = {
   decks: 'id',
   cards: 'id',
   progress: 'card_id',
+  reviews: 'id',
 }
 
 /** A pending local change that hasn't reached Supabase yet. */
 export type OutboxOp =
-  | { seq?: number; table: TableName; kind: 'upsert'; key: string; row: Deck | Card | Progress }
+  | { seq?: number; table: TableName; kind: 'upsert'; key: string; row: Deck | Card | Progress | Review }
   | { seq?: number; table: TableName; kind: 'delete'; key: string }

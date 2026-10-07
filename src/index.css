@@ -1036,3 +1036,120 @@ figure.board {
     height: 44px;
   }
 }
+
+/* ── streaks & progress ── */
+.streak-flame {
+  display: inline-grid;
+  color: var(--muted);
+}
+.streak-flame.on {
+  color: #f07b1e;
+}
+.streak-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: -0.25rem 0 1rem;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+.streak-line:hover .streak-more {
+  color: var(--accent);
+}
+.streak-more {
+  margin-left: auto;
+  font-size: 0.85rem;
+}
+.streak-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+}
+.stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.stat-tile > .muted {
+  font-size: 0.85rem;
+}
+.stat-value {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.stat-value small {
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+.calendar-fit {
+  --cell: 15px;
+  padding: 3px; /* room for today's outline */
+}
+.calendar {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.calendar-months,
+.calendar-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: var(--cell);
+  gap: 4px;
+}
+.calendar-months span {
+  font-size: 0.7rem;
+  color: var(--muted);
+  white-space: nowrap;
+  height: 1em;
+}
+.calendar-week {
+  display: grid;
+  grid-template-rows: repeat(7, var(--cell));
+  gap: 4px;
+}
+.calendar-day {
+  display: inline-block;
+  width: var(--cell);
+  height: var(--cell);
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+.calendar-day.l1 { background: color-mix(in srgb, var(--accent) 30%, var(--surface)); }
+.calendar-day.l2 { background: color-mix(in srgb, var(--accent) 55%, var(--surface)); }
+.calendar-day.l3 { background: color-mix(in srgb, var(--accent) 80%, var(--surface)); }
+.calendar-day.l4 { background: var(--accent); }
+.calendar-day.future {
+  visibility: hidden;
+}
+.calendar-day.today {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
+}
+.calendar-legend .calendar-day {
+  --cell: 12px;
+}
+.calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  justify-content: flex-end;
+}
+@media (pointer: coarse) {
+  .calendar-fit {
+    --cell: 18px;
+  }
+}

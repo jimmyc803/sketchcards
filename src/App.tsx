@@ -17,6 +17,7 @@ import DeckView from './pages/DeckView'
 import CardEditor from './pages/CardEditor'
 import Study from './pages/Study'
 import Settings from './pages/Settings'
+import Progress from './pages/Progress'
 import Privacy from './pages/Privacy'
 
 export default function App() {
@@ -90,6 +91,7 @@ function Shell() {
           <NavLink to="/" end>
             Decks
           </NavLink>
+          <NavLink to="/progress">Progress</NavLink>
           <NavLink to="/settings">Settings</NavLink>
         </nav>
       </header>
@@ -100,6 +102,7 @@ function Shell() {
           <Route path="/deck/:deckId/new" element={<CardEditor />} />
           <Route path="/card/:cardId" element={<CardEditor />} />
           <Route path="/study/:deckId" element={<Study />} />
+          <Route path="/progress" element={<Progress />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -3,10 +3,12 @@ import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import CardFace from '../components/CardFace'
 import Compare from '../components/Compare'
 import DrawPad from '../components/DrawPad'
-import { getState, saveProgress, useData } from '../data/store'
+import { getState, logReview, saveProgress, useData } from '../data/store'
 import type { Card, Deck, Grade, Stroke } from '../data/types'
 import { hasVisualReference } from '../lib/cards'
 import { penRecentlyActive } from '../draw/penActivity'
+import { currentStreak } from '../stats/streak'
+import { FlameIcon } from '../components/icons'
 import { useDefaultNewPerDay } from '../lib/prefs'
 import { gradeProgress, intervalLabel } from '../srs/grading'
 import { buildQueue } from '../srs/queue'
@@ -83,8 +85,11 @@ function StudySession({ deck, practice, only }: { deck: Deck; practice: boolean;
       setSession(S.gradeCurrent(session, g))
       setFlipped(false)
       setDrawing([])
-      if (!practice && S.isFirstAttempt(session, card.id)) {
-        void saveProgress(gradeProgress(progress.get(card.id), g, today, { card_id: card.id, user_id: card.user_id }))
+      if (S.isFirstAttempt(session, card.id)) {
+        void logReview(card, g, practice ? 'practice' : 'study')
+        if (!practice) {
+          void saveProgress(gradeProgress(progress.get(card.id), g, today, { card_id: card.id, user_id: card.user_id }))
+        }
       }
     },
     [card, flipped, session, progress, today, practice],
@@ -297,12 +302,24 @@ function Summary({
     [session.firstGrade, cards, progress],
   )
   const count = (g: Grade) => rows.filter((r) => r.grade === g).length
+  const reviewDays = useData((s) => s.reviewDays)
+  const streak = currentStreak(reviewDays, todayLocal())
+  const streakLine = streak > 0 && (
+    <p className="streak-summary">
+      <span className="streak-flame on">
+        <FlameIcon />
+      </span>
+      <b>{streak}-day streak</b>
+      <span className="muted">· {streak === 1 ? 'come back tomorrow to keep it going' : 'keep it going'}</span>
+    </p>
+  )
   const againIds = rows.filter((r) => r.grade === 'missed' && r.card).map((r) => r.card!.id)
 
   if (practice) {
     return (
       <div className="stack">
         <h1>Practice complete 🎉</h1>
+        {streakLine}
         <p>
           {count('got')} of {rows.length} right on the first try
           {againIds.length > 0 && <> · {againIds.length} needed another go</>}.{' '}
@@ -340,6 +357,7 @@ function Summary({
   return (
     <div className="stack">
       <h1>Session complete 🎉</h1>
+      {streakLine}
       <p>
         {rows.length} cards · <span className="error">{count('missed')} missed</span> · {count('close')} close ·{' '}
         {count('got')} got it

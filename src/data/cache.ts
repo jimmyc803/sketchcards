@@ -67,10 +67,13 @@ export async function saveSnapshot(userId: string, snap: Snapshot) {
 }
 
 export async function putRow(userId: string, op: OutboxOp) {
+  // The review log has no local rows (only per-day totals in meta); it just needs queueing.
+  if (op.table === 'reviews') return enqueue(userId, op)
+  const table = op.table
   const d = await db(userId)
-  const tx = d.transaction([op.table, 'outbox'], 'readwrite')
-  if (op.kind === 'upsert') await tx.objectStore(op.table).put(op.row as never)
-  else await tx.objectStore(op.table).delete(op.key)
+  const tx = d.transaction([table, 'outbox'], 'readwrite')
+  if (op.kind === 'upsert') await tx.objectStore(table).put(op.row as never)
+  else await tx.objectStore(table).delete(op.key)
   await tx.objectStore('outbox').add(withoutSeq(op))
   await tx.done
 }
@@ -81,6 +84,27 @@ export async function deleteLocal(userId: string, table: 'cards' | 'progress', k
   const tx = d.transaction(table, 'readwrite')
   await Promise.all(keys.map((k) => tx.store.delete(k)))
   await tx.done
+}
+
+/** Queue a change for the server without keeping a local row (used for the insert-only review log). */
+export async function enqueue(userId: string, op: OutboxOp) {
+  await (await db(userId)).add('outbox', withoutSeq(op))
+}
+
+export async function getMeta<T>(userId: string, key: string): Promise<T | undefined> {
+  try {
+    return (await (await db(userId)).get('meta', key)) as T | undefined
+  } catch {
+    return undefined
+  }
+}
+
+export async function putMeta(userId: string, key: string, value: unknown) {
+  try {
+    await (await db(userId)).put('meta', value, key)
+  } catch {
+    /* cache is best effort */
+  }
 }
 
 export async function readOutbox(userId: string): Promise<OutboxOp[]> {

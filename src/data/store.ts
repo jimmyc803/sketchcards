@@ -2,7 +2,9 @@ import { useSyncExternalStore } from 'react'
 import { supabase } from '../lib/supabase'
 import * as cache from './cache'
 import { compactOutbox, mergeSnapshot } from './merge'
-import type { Card, Deck, OutboxOp, Progress, TableName } from './types'
+import type { Card, Deck, Grade, OutboxOp, Progress, Review, TableName } from './types'
+import type { DayCounts } from '../stats/streak'
+import { addDays, todayLocal } from '../srs/scheduler'
 
 /**
  * The app's data store. UI reads from an in-memory snapshot (loaded from IndexedDB
@@ -18,6 +20,8 @@ export interface DataState {
   ready: boolean
   /** True once this session has loaded the account's data from Supabase (not just the local cache). */
   serverLoaded: boolean
+  /** Reviews per local day (last ~13 months), for streaks and the activity calendar. */
+  reviewDays: DayCounts
   decks: Deck[]
   cards: Card[]
   progress: Map<string, Progress>
@@ -30,6 +34,7 @@ let state: DataState = {
   userId: null,
   ready: false,
   serverLoaded: false,
+  reviewDays: {},
   decks: [],
   cards: [],
   progress: new Map(),
@@ -69,7 +74,12 @@ export async function startSession(userId: string) {
   set({ userId, ready: false })
   const snap = await cache.loadSnapshot(userId)
   const outbox = await cache.readOutbox(userId)
-  set({ ...fromSnapshot(snap), pending: outbox.length, ready: snap.decks.length > 0 })
+  set({
+    ...fromSnapshot(snap),
+    pending: outbox.length,
+    ready: snap.decks.length > 0,
+    reviewDays: (await cache.getMeta<DayCounts>(userId, REVIEW_DAYS)) ?? {},
+  })
   window.addEventListener('online', syncSoon)
   document.addEventListener('visibilitychange', onVisible)
   syncTimer = setInterval(syncSoon, 5 * 60_000)
@@ -82,7 +92,17 @@ export function stopSession() {
   document.removeEventListener('visibilitychange', onVisible)
   clearInterval(syncTimer)
   cache.closeCache()
-  set({ userId: null, ready: false, serverLoaded: false, decks: [], cards: [], progress: new Map(), pending: 0, sync: 'idle' })
+  set({
+    userId: null,
+    ready: false,
+    serverLoaded: false,
+    decks: [],
+    cards: [],
+    progress: new Map(),
+    reviewDays: {},
+    pending: 0,
+    sync: 'idle',
+  })
 }
 
 function onVisible() {
@@ -153,10 +173,57 @@ async function syncOnce() {
     }
     await cache.saveSnapshot(userId, merged)
     set({ ...fromSnapshot(merged), pending: pending.length, sync: 'idle', serverLoaded: true })
+    await refreshReviewDays(userId, pending)
   } catch (err) {
     const offline = !navigator.onLine || isNetworkError(err)
     set({ sync: offline ? 'offline' : 'error', syncError: offline ? null : messageOf(err) })
   }
+}
+
+// ───────────────────────── review log ─────────────────────────
+
+const REVIEW_DAYS = 'reviewDays'
+const HISTORY_DAYS = 400
+
+/** Server per-day totals plus any reviews still waiting in the outbox. Non-fatal on failure. */
+async function refreshReviewDays(userId: string, pending: OutboxOp[]) {
+  const { data, error } = await supabase.rpc('review_days', { since: addDays(todayLocal(), -HISTORY_DAYS) })
+  if (error) {
+    console.warn('sketchcards: could not load review history', error.message)
+    return
+  }
+  const days: DayCounts = {}
+  for (const r of data as { day: string; reviews: number }[]) days[r.day] = r.reviews
+  for (const op of pending) {
+    if (op.table === 'reviews' && op.kind === 'upsert') {
+      const day = (op.row as Review).reviewed_on
+      days[day] = (days[day] ?? 0) + 1
+    }
+  }
+  if (state.userId !== userId) return
+  set({ reviewDays: days })
+  await cache.putMeta(userId, REVIEW_DAYS, days)
+}
+
+/** Record that a card was graded. Works offline: queued and uploaded with everything else. */
+export async function logReview(card: Card, grade: Grade, mode: Review['mode']) {
+  const userId = state.userId
+  if (!userId) return
+  const row: Review = {
+    id: newId(),
+    user_id: userId,
+    card_id: card.id,
+    deck_id: card.deck_id,
+    grade,
+    mode,
+    reviewed_on: todayLocal(),
+    reviewed_at: now(),
+  }
+  const reviewDays = { ...state.reviewDays, [row.reviewed_on]: (state.reviewDays[row.reviewed_on] ?? 0) + 1 }
+  set({ reviewDays, pending: state.pending + 1 })
+  await cache.enqueue(userId, { table: 'reviews', kind: 'upsert', key: row.id, row })
+  await cache.putMeta(userId, REVIEW_DAYS, reviewDays)
+  syncSoon()
 }
 
 async function fetchAll<T>(table: TableName): Promise<T[]> {

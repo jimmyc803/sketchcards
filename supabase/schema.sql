@@ -133,3 +133,45 @@ create policy "card-images update own" on storage.objects
 create policy "card-images delete own" on storage.objects
   for delete to authenticated
   using (bucket_id = 'card-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ───────────────────── Review log (streaks, activity) ─────────────────────
+-- One row each time a card is graded (first answer per session, Study or Practice).
+-- Insert-only history; it is kept when cards or decks are deleted so streaks don't vanish.
+
+create table if not exists public.reviews (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  card_id     uuid,
+  deck_id     uuid,
+  grade       text not null check (grade in ('missed', 'close', 'got')),
+  mode        text not null default 'study' check (mode in ('study', 'practice')),
+  reviewed_on date not null,               -- the user's local calendar day
+  reviewed_at timestamptz not null default now()
+);
+
+create index if not exists reviews_user_day_idx on public.reviews (user_id, reviewed_on);
+
+alter table public.reviews enable row level security;
+
+drop policy if exists "own reviews" on public.reviews;
+create policy "own reviews" on public.reviews
+  for all to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+-- Per-day totals for the signed-in user only (runs with the caller's permissions, so RLS applies).
+create or replace function public.review_days(since date)
+returns table (day date, reviews int)
+language sql
+stable
+set search_path = ''
+as $$
+  select r.reviewed_on, count(*)::int
+  from public.reviews r
+  where r.user_id = auth.uid() and r.reviewed_on >= since
+  group by r.reviewed_on
+  order by r.reviewed_on
+$$;
+
+revoke all on function public.review_days(date) from public, anon;
+grant execute on function public.review_days(date) to authenticated;

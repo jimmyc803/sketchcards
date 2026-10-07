@@ -30,7 +30,8 @@ export default function Privacy() {
           sketches you save as card answers.
         </li>
         <li>
-          <strong>Your study progress:</strong> when each card is next due and how you graded it.
+          <strong>Your study progress:</strong> when each card is next due, how you graded it, and a log of
+          when you studied (used for your streak and activity calendar).
         </li>
       </ul>
       <p>

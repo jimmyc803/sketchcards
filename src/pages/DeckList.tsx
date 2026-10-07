@@ -9,6 +9,7 @@ import { todayLocal } from '../srs/scheduler'
 import { addSampleDeck, downloadJson, exportDecks, importDeckFile, safeFilename } from '../io/transfer'
 import DeckMenu from '../components/DeckMenu'
 import InstallHint from '../components/InstallHint'
+import StreakLine from '../components/StreakLine'
 
 export default function DeckList() {
   const decks = useData((s) => s.decks)
@@ -88,6 +89,7 @@ export default function DeckList() {
           {error}
         </p>
       )}
+      <StreakLine />
       <InstallHint />
 
       {creating && <NewDeckForm onDone={() => setCreating(false)} />}
