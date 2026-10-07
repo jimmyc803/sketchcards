@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { CANVAS_H, CANVAS_W, type Point, type Stroke } from '../data/types'
 import PaperBackground from './PaperBackground'
+import Popover from './Popover'
+import { EraserIcon, PaperIcon, PenIcon, RedoIcon, TrashIcon, UndoIcon } from './icons'
 import { PEN_COLORS, isPenColor, type PenColor } from '../draw/colors'
-import { PAPERS, usePaper, type Paper } from '../draw/paper'
+import { PAPERS, usePaper } from '../draw/paper'
 import { notePenActivity } from '../draw/penActivity'
 import { compactStroke, hitsStroke, strokePath } from '../draw/strokes'
 
@@ -41,6 +43,10 @@ export default function DrawPad({
   const [tool, setTool] = useState<Tool>('pen')
   const [color, setColorState] = useState<PenColor>(loadPenColor)
   const [paper, setPaper] = usePaper()
+  const [menu, setMenu] = useState<'color' | 'paper' | null>(null)
+  const closeMenu = useCallback(() => setMenu(null), [])
+  const colorLabel = PEN_COLORS.find((c) => c.key === color)!.label.toLowerCase()
+  const paperLabel = PAPERS.find((p) => p.key === paper)!.label.toLowerCase()
 
   function setColor(c: PenColor) {
     setColorState(c)
@@ -317,46 +323,110 @@ export default function DrawPad({
   return (
     <div className="drawpad">
       <div className="drawpad-tools" role="toolbar" aria-label="Drawing tools">
-        <button type="button" className="btn small" aria-pressed={tool === 'pen'} onClick={() => setTool('pen')}>
-          ✎ Pen
-        </button>
-        <button type="button" className="btn small" aria-pressed={tool === 'eraser'} onClick={() => setTool('eraser')}>
-          ⌫ Eraser
-        </button>
-        <div className="swatches" role="group" aria-label="Pen color">
-          {PEN_COLORS.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              className="swatch"
-              style={{ '--swatch': `var(--pen-${c.key})` } as React.CSSProperties}
-              aria-label={`${c.label} pen`}
-              aria-pressed={tool === 'pen' && color === c.key}
-              title={c.label}
-              onClick={() => setColor(c.key)}
-            />
-          ))}
+        <div className="tool-group">
+          <Popover
+            open={menu === 'color'}
+            onClose={closeMenu}
+            label="Pen color"
+            trigger={
+              <button
+                type="button"
+                className="icon-btn pen-btn"
+                aria-pressed={tool === 'pen'}
+                aria-haspopup="dialog"
+                aria-expanded={menu === 'color'}
+                aria-label={`Pen, ${colorLabel}${tool === 'pen' ? '. Tap again for colors' : ''}`}
+                title={tool === 'pen' ? 'Pen: tap again for colors' : 'Pen'}
+                onClick={() => {
+                  if (tool === 'pen') setMenu(menu === 'color' ? null : 'color')
+                  else setTool('pen')
+                }}
+              >
+                <PenIcon />
+                <span className="color-dot" style={{ background: `var(--pen-${color})` }} aria-hidden="true" />
+              </button>
+            }
+          >
+            <div className="swatches" role="group" aria-label="Pen color">
+              {PEN_COLORS.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  className="swatch"
+                  style={{ '--swatch': `var(--pen-${c.key})` } as React.CSSProperties}
+                  aria-label={`${c.label} pen`}
+                  aria-pressed={color === c.key}
+                  title={c.label}
+                  onClick={() => {
+                    setColor(c.key)
+                    closeMenu()
+                  }}
+                />
+              ))}
+            </div>
+          </Popover>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-pressed={tool === 'eraser'}
+            aria-label="Eraser"
+            title="Eraser"
+            onClick={() => {
+              setTool('eraser')
+              closeMenu()
+            }}
+          >
+            <EraserIcon />
+          </button>
+          <Popover
+            open={menu === 'paper'}
+            onClose={closeMenu}
+            label="Paper"
+            trigger={
+              <button
+                type="button"
+                className="icon-btn"
+                aria-haspopup="dialog"
+                aria-expanded={menu === 'paper'}
+                aria-label={`Paper: ${paperLabel}`}
+                title="Paper"
+                onClick={() => setMenu(menu === 'paper' ? null : 'paper')}
+              >
+                <PaperIcon kind={paper} />
+              </button>
+            }
+          >
+            <div className="paper-options" role="group" aria-label="Paper">
+              {PAPERS.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  className="paper-option"
+                  aria-pressed={paper === p.key}
+                  onClick={() => {
+                    setPaper(p.key)
+                    closeMenu()
+                  }}
+                >
+                  <PaperIcon kind={p.key} />
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </Popover>
         </div>
-        <label className="paper-select">
-          <span className="sr-only">Paper</span>
-          <select value={paper} onChange={(e) => setPaper(e.target.value as Paper)} aria-label="Paper">
-            {PAPERS.map((p) => (
-              <option key={p.key} value={p.key}>
-                {p.label} paper
-              </option>
-            ))}
-          </select>
-        </label>
         <span className="spacer" />
-        <button type="button" className="btn small" onClick={undo} disabled={!history.undo} aria-label="Undo">
-          ↶ Undo
-        </button>
-        <button type="button" className="btn small" onClick={redo} disabled={!history.redo} aria-label="Redo">
-          ↷ Redo
-        </button>
-        <button type="button" className="btn small" onClick={clear} disabled={!value.length}>
-          Clear
-        </button>
+        <div className="tool-group">
+          <button type="button" className="icon-btn" onClick={undo} disabled={!history.undo} aria-label="Undo" title="Undo (⌘Z)">
+            <UndoIcon />
+          </button>
+          <button type="button" className="icon-btn" onClick={redo} disabled={!history.redo} aria-label="Redo" title="Redo (⇧⌘Z)">
+            <RedoIcon />
+          </button>
+          <button type="button" className="icon-btn" onClick={clear} disabled={!value.length} aria-label="Clear drawing" title="Clear drawing">
+            <TrashIcon />
+          </button>
+        </div>
       </div>
       <div className="drawpad-surface" ref={wrapRef}>
         <PaperBackground paper={paper} />
