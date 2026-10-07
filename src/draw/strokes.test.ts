@@ -32,4 +32,11 @@ describe('strokes', () => {
     expect(parseStrokes('nope')).toBeNull()
     expect(parseStrokes([{ points: 'x' }])).toBeNull()
   })
+
+  it('keeps pen colors through compacting and import, dropping unknown or default ones', () => {
+    expect(compactStroke({ pen: true, color: 'red', points: [[1, 2, 0.5]] }).color).toBe('red')
+    expect(compactStroke({ pen: true, color: 'ink', points: [[1, 2, 0.5]] })).not.toHaveProperty('color')
+    expect(parseStrokes([{ pen: true, color: 'blue', points: [[1, 2, 0.5]] }])![0].color).toBe('blue')
+    expect(parseStrokes([{ pen: true, color: 'hotpink', points: [[1, 2, 0.5]] }])![0]).not.toHaveProperty('color')
+  })
 })

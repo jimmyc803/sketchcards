@@ -1,5 +1,7 @@
 import type { Card, Stroke } from '../data/types'
 import CardImage from './CardImage'
+import PaperBackground from './PaperBackground'
+import { usePaper } from '../draw/paper'
 import StrokesSvg from './StrokesSvg'
 
 /** The reference answer drawn into a 4:3 board, so it lines up with the user's drawing. */
@@ -10,6 +12,7 @@ function Reference({ card, className }: { card: Card; className?: string }) {
 }
 
 export default function Compare({ card, drawing, overlay }: { card: Card; drawing: Stroke[]; overlay: boolean }) {
+  const [paper] = usePaper()
   const mine = drawing.length ? (
     <StrokesSvg strokes={drawing} label="Your drawing" />
   ) : (
@@ -19,6 +22,7 @@ export default function Compare({ card, drawing, overlay }: { card: Card; drawin
   if (overlay) {
     return (
       <figure className="board" aria-label="Your drawing with the reference overlaid">
+        <PaperBackground paper={paper} />
         {mine}
         <Reference card={card} className="overlay" />
       </figure>
@@ -28,11 +32,15 @@ export default function Compare({ card, drawing, overlay }: { card: Card; drawin
     <div className="compare">
       <figure>
         <figcaption>Your drawing</figcaption>
-        <div className="board">{mine}</div>
+        <div className="board">
+          <PaperBackground paper={paper} />
+          {mine}
+        </div>
       </figure>
       <figure>
         <figcaption>Reference</figcaption>
         <div className="board">
+          {card.back_strokes?.length ? <PaperBackground paper={paper} /> : null}
           <Reference card={card} />
         </div>
       </figure>

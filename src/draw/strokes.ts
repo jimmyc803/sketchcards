@@ -1,5 +1,6 @@
 import { getStroke } from 'perfect-freehand'
 import type { Stroke } from '../data/types'
+import { isPenColor } from './colors'
 
 /** Stroke size is in virtual canvas units (the canvas is 1000 units wide). */
 export const PEN_SIZE = 9
@@ -69,6 +70,7 @@ function distToSegment2(px: number, py: number, ax: number, ay: number, bx: numb
 export function compactStroke(stroke: Stroke): Stroke {
   return {
     pen: stroke.pen,
+    ...(stroke.color && stroke.color !== 'ink' ? { color: stroke.color } : {}),
     points: stroke.points.map(([x, y, p]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10, Math.round(p * 100) / 100]),
   }
 }
@@ -82,7 +84,12 @@ export function parseStrokes(value: unknown): Stroke[] | null {
     const points = (s as Stroke).points.filter(
       (p): p is [number, number, number] => Array.isArray(p) && p.length >= 2 && p.every((n) => typeof n === 'number' && Number.isFinite(n)),
     )
-    out.push({ pen: Boolean((s as Stroke).pen), points: points.map(([x, y, p]) => [x, y, p ?? 0.5]) })
+    const color = (s as Stroke).color
+    out.push({
+      pen: Boolean((s as Stroke).pen),
+      ...(isPenColor(color) && color !== 'ink' ? { color } : {}),
+      points: points.map(([x, y, p]) => [x, y, p ?? 0.5]),
+    })
   }
   return out
 }

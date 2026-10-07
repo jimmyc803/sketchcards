@@ -1,11 +1,25 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { CANVAS_H, CANVAS_W, type Point, type Stroke } from '../data/types'
+import PaperBackground from './PaperBackground'
+import { PEN_COLORS, isPenColor, type PenColor } from '../draw/colors'
+import { PAPERS, usePaper, type Paper } from '../draw/paper'
 import { notePenActivity } from '../draw/penActivity'
 import { compactStroke, hitsStroke, strokePath } from '../draw/strokes'
 
 type Tool = 'pen' | 'eraser'
 const ERASER_RADIUS = 14
 const MIN_PEN_PRESSURE = 0.25
+const COLOR_KEY = 'sketchcards.penColor'
+
+function loadPenColor(): PenColor {
+  try {
+    const v = localStorage.getItem(COLOR_KEY)
+    if (isPenColor(v)) return v
+  } catch {
+    /* storage unavailable */
+  }
+  return 'ink'
+}
 
 /**
  * Freehand canvas. Pointer Events cover Apple Pencil (with pressure), touch and mouse.
@@ -25,6 +39,18 @@ export default function DrawPad({
   const baseRef = useRef<HTMLCanvasElement>(null)
   const liveRef = useRef<HTMLCanvasElement>(null)
   const [tool, setTool] = useState<Tool>('pen')
+  const [color, setColorState] = useState<PenColor>(loadPenColor)
+  const [paper, setPaper] = usePaper()
+
+  function setColor(c: PenColor) {
+    setColorState(c)
+    setTool('pen')
+    try {
+      localStorage.setItem(COLOR_KEY, c)
+    } catch {
+      /* storage unavailable */
+    }
+  }
   const [history, setHistory] = useState({ undo: 0, redo: 0 })
 
   // Mutable drawing state lives in refs so pointer handlers never see stale values.
@@ -45,9 +71,12 @@ export default function DrawPad({
     [],
   )
 
-  const ink = useCallback(() => {
-    const el = wrapRef.current
-    return (el && getComputedStyle(el).getPropertyValue('--ink').trim()) || '#000'
+  // Resolve the --pen-* CSS variables (they change with the theme) to colors the canvas understands.
+  const resolveColors = useCallback(() => {
+    const style = wrapRef.current && getComputedStyle(wrapRef.current)
+    const out = {} as Record<PenColor, string>
+    for (const { key } of PEN_COLORS) out[key] = style?.getPropertyValue(`--pen-${key}`).trim() || '#000'
+    return out
   }, [])
 
   const paint = useCallback(
@@ -57,10 +86,13 @@ export default function DrawPad({
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.setTransform(scaleRef.current, 0, 0, scaleRef.current, 0, 0)
-      ctx.fillStyle = ink()
-      for (const s of strokes) ctx.fill(new Path2D(strokePath(s, last)))
+      const colors = resolveColors()
+      for (const s of strokes) {
+        ctx.fillStyle = colors[s.color ?? 'ink']
+        ctx.fill(new Path2D(strokePath(s, last)))
+      }
     },
-    [ink],
+    [resolveColors],
   )
 
   const redrawBase = useCallback(() => paint(baseRef.current, valueRef.current, true), [paint])
@@ -171,7 +203,7 @@ export default function DrawPad({
     activeRef.current = {
       id: e.pointerId,
       type: e.pointerType,
-      stroke: { pen: e.pointerType === 'pen', points: [pt] },
+      stroke: { pen: e.pointerType === 'pen', points: [pt], ...(color !== 'ink' ? { color } : {}) },
       erasing,
       before: valueRef.current,
     }
@@ -291,6 +323,30 @@ export default function DrawPad({
         <button type="button" className="btn small" aria-pressed={tool === 'eraser'} onClick={() => setTool('eraser')}>
           ⌫ Eraser
         </button>
+        <div className="swatches" role="group" aria-label="Pen color">
+          {PEN_COLORS.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              className="swatch"
+              style={{ '--swatch': `var(--pen-${c.key})` } as React.CSSProperties}
+              aria-label={`${c.label} pen`}
+              aria-pressed={tool === 'pen' && color === c.key}
+              title={c.label}
+              onClick={() => setColor(c.key)}
+            />
+          ))}
+        </div>
+        <label className="paper-select">
+          <span className="sr-only">Paper</span>
+          <select value={paper} onChange={(e) => setPaper(e.target.value as Paper)} aria-label="Paper">
+            {PAPERS.map((p) => (
+              <option key={p.key} value={p.key}>
+                {p.label} paper
+              </option>
+            ))}
+          </select>
+        </label>
         <span className="spacer" />
         <button type="button" className="btn small" onClick={undo} disabled={!history.undo} aria-label="Undo">
           ↶ Undo
@@ -303,6 +359,7 @@ export default function DrawPad({
         </button>
       </div>
       <div className="drawpad-surface" ref={wrapRef}>
+        <PaperBackground paper={paper} />
         <canvas ref={baseRef} aria-hidden="true" />
         <canvas
           ref={liveRef}

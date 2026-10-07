@@ -1,3 +1,5 @@
+import type { PenColor } from '../draw/colors'
+
 export type AnswerMode = 'flip' | 'draw'
 export type Grade = 'missed' | 'close' | 'got'
 
@@ -8,6 +10,8 @@ export interface Stroke {
   points: Point[]
   /** true when drawn with a pen (real pressure); false = simulate pressure from speed */
   pen: boolean
+  /** Pen color key (see draw/colors.ts). Missing = "ink", which follows the theme. */
+  color?: PenColor
 }
 
 /** All drawings live in a fixed 4:3 virtual space so they scale to any screen. */

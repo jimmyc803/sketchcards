@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import { CANVAS_H, CANVAS_W, type Stroke } from '../data/types'
+import { penColorVar } from '../draw/colors'
 import { strokePath } from '../draw/strokes'
 
-/** Renders saved strokes as SVG in currentColor, so they follow the theme. */
+/** Renders saved strokes as SVG. Colors are CSS variables, so they follow the theme. */
 export default function StrokesSvg({
   strokes,
   className,
@@ -12,7 +13,7 @@ export default function StrokesSvg({
   className?: string
   label?: string
 }) {
-  const paths = useMemo(() => strokes.map((s) => strokePath(s)), [strokes])
+  const paths = useMemo(() => strokes.map((s) => ({ d: strokePath(s), color: s.color })), [strokes])
   return (
     <svg
       className={className}
@@ -22,8 +23,8 @@ export default function StrokesSvg({
       aria-label={label}
       preserveAspectRatio="xMidYMid meet"
     >
-      {paths.map((d, i) => (
-        <path key={i} d={d} />
+      {paths.map(({ d, color }, i) => (
+        <path key={i} d={d} fill={color ? penColorVar(color) : undefined} />
       ))}
     </svg>
   )
