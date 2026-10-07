@@ -47,9 +47,17 @@ export default function Privacy() {
         clears it.
       </p>
 
+      <h2>Visit statistics</h2>
+      <p>
+        To see how many people use the site, it counts page views with{' '}
+        <a href="https://vercel.com/docs/analytics/privacy-policy">Vercel Web Analytics</a>. It uses no cookies and
+        doesn't identify you: it records the page type (for example "a study page", never which deck), plus country,
+        device type and browser, only as totals.
+      </p>
+
       <h2>What is not done</h2>
       <ul>
-        <li>No ads, analytics, or tracking scripts.</li>
+        <li>No ads, no cookies for tracking, and no cross-site tracking.</li>
         <li>No selling or sharing of your data.</li>
         <li>Google sign-in is used only to confirm who you are; the app does not access your Gmail, Drive, or other Google data.</li>
       </ul>

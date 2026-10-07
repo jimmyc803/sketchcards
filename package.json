@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
+    "@vercel/analytics": "^2.0.1",
     "idb": "^8.0.4",
     "perfect-freehand": "^1.2.3",
     "react": "^19.2.8",

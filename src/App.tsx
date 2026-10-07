@@ -10,6 +10,8 @@ import { addSampleDeck } from './io/transfer'
 import AuthScreen from './pages/AuthScreen'
 import SetupNeeded from './pages/SetupNeeded'
 import UpdatePrompt from './components/UpdatePrompt'
+import { Analytics } from '@vercel/analytics/react'
+import { anonymizeUrl } from './lib/analytics'
 import DeckList from './pages/DeckList'
 import DeckView from './pages/DeckView'
 import CardEditor from './pages/CardEditor'
@@ -25,6 +27,12 @@ export default function App() {
         <Gate />
         <UpdatePrompt />
       </BrowserRouter>
+      {/* Cookieless, aggregate visit counts (Vercel Web Analytics). IDs are stripped from URLs. */}
+      <Analytics
+        mode={import.meta.env.PROD ? 'production' : 'development'}
+        debug={false}
+        beforeSend={(event) => ({ ...event, url: anonymizeUrl(event.url) })}
+      />
     </AuthProvider>
   )
 }
