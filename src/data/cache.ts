@@ -1,4 +1,4 @@
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+import { deleteDB, openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import type { Card, Deck, OutboxOp, Progress } from './types'
 
 /** Light local cache so the app opens instantly and survives brief offline periods. */
@@ -16,17 +16,25 @@ let dbPromise: Promise<IDBPDatabase<CacheSchema>> | null = null
 
 function db(userId: string) {
   // One database per user so switching accounts never mixes data.
-  dbPromise ??= openDB<CacheSchema>(`sketchcards-${userId}`, 1, {
+  dbPromise ??= openDB<CacheSchema>(`sketchcards-${userId}`, 2, {
+    // Create whatever is missing, so a partial or empty database repairs itself.
     upgrade(d) {
-      d.createObjectStore('decks', { keyPath: 'id' })
-      d.createObjectStore('cards', { keyPath: 'id' })
-      d.createObjectStore('progress', { keyPath: 'card_id' })
-      d.createObjectStore('outbox', { keyPath: 'seq', autoIncrement: true })
-      d.createObjectStore('images')
-      d.createObjectStore('meta')
+      const has = (n: string) => d.objectStoreNames.contains(n as never)
+      if (!has('decks')) d.createObjectStore('decks', { keyPath: 'id' })
+      if (!has('cards')) d.createObjectStore('cards', { keyPath: 'id' })
+      if (!has('progress')) d.createObjectStore('progress', { keyPath: 'card_id' })
+      if (!has('outbox')) d.createObjectStore('outbox', { keyPath: 'seq', autoIncrement: true })
+      if (!has('images')) d.createObjectStore('images')
+      if (!has('meta')) d.createObjectStore('meta')
     },
   })
   return dbPromise
+}
+
+/** Remove everything stored locally for this user (on sign out). */
+export async function deleteUserCache(userId: string) {
+  closeCache()
+  await deleteDB(`sketchcards-${userId}`)
 }
 
 export function closeCache() {

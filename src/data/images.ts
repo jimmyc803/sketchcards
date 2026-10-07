@@ -124,3 +124,24 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
 export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   return (await fetch(dataUrl)).blob()
 }
+
+let prefetching = false
+
+/**
+ * Download any uploaded images not yet cached, so a deck studies fine offline (e.g. on the iPad).
+ * Best effort, one at a time, in the background.
+ */
+export async function prefetchImages(refs: (string | null)[]) {
+  const userId = getState().userId
+  if (prefetching || !userId || !navigator.onLine) return
+  prefetching = true
+  try {
+    for (const ref of new Set(refs)) {
+      if (!ref || !isStoragePath(ref) || !navigator.onLine || getState().userId !== userId) continue
+      if (await getCachedImage(userId, ref)) continue
+      await fetchImageBlob(ref).catch(() => {})
+    }
+  } finally {
+    prefetching = false
+  }
+}

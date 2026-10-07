@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import { prefetchImages } from './data/images'
 import { startSession, stopSession, useData } from './data/store'
 import { AuthProvider, useAuth } from './lib/auth'
 import { isConfigured } from './lib/supabase'
@@ -39,6 +40,14 @@ function Gate() {
 function Shell() {
   const sync = useData((s) => s.sync)
   const pending = useData((s) => s.pending)
+  const cards = useData((s) => s.cards)
+
+  // After each sync, quietly cache card images for offline study.
+  useEffect(() => {
+    if (sync !== 'idle') return
+    const t = setTimeout(() => void prefetchImages(cards.flatMap((c) => [c.front_image, c.back_image])), 1500)
+    return () => clearTimeout(t)
+  }, [sync, cards])
   return (
     <>
       <a href="#main" className="skip-link">

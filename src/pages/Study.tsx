@@ -115,6 +115,7 @@ function StudySession({ deck }: { deck: Deck }) {
 
   return (
     <div className="study">
+      <h1 className="sr-only">Studying {deck.name}</h1>
       <div className="row">
         <Link to={`/deck/${deck.id}`} className="muted">
           ← {deck.name}
