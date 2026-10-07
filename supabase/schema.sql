@@ -54,7 +54,9 @@ create index if not exists decks_user_idx        on public.decks (user_id);
 -- An UPDATE carrying an older updated_at than the stored row is silently skipped.
 
 create or replace function public.lww_guard() returns trigger
-language plpgsql as $$
+language plpgsql
+set search_path = ''
+as $$
 begin
   if new.updated_at < old.updated_at then
     return null; -- keep the newer row
