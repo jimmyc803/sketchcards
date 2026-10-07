@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { deleteUserCache } from '../data/cache'
+import { InstallInstructions } from '../components/InstallHint'
+import { useInstallMethod } from '../lib/install'
 import { syncNow, useData } from '../data/store'
 import { backupFilename, downloadJson, exportDecks } from '../io/transfer'
 import { useAuth } from '../lib/auth'
@@ -28,6 +30,7 @@ export default function Settings() {
   const [theme, setTheme] = useState<Theme>(getTheme)
   const [msg, setMsg] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [installMethod] = useInstallMethod()
 
   async function saveNewPerDay() {
     const n = Math.max(0, Math.min(1000, Math.round(Number(newPerDay))))
@@ -124,6 +127,17 @@ export default function Settings() {
           {syncError && <span className="error"> Last sync error: {syncError}</span>}
         </p>
       </section>
+
+      {(installMethod === 'ios' || installMethod === 'prompt') && (
+        <section className="panel stack" aria-labelledby="install-h">
+          <h2 id="install-h" style={{ fontSize: '1.1rem' }}>
+            Install the app
+          </h2>
+          <div className="row">
+            <InstallInstructions />
+          </div>
+        </section>
+      )}
 
       <section className="panel stack" aria-labelledby="keys-h">
         <h2 id="keys-h" style={{ fontSize: '1.1rem' }}>
