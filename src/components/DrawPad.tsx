@@ -5,6 +5,7 @@ import { compactStroke, hitsStroke, strokePath } from '../draw/strokes'
 
 type Tool = 'pen' | 'eraser'
 const ERASER_RADIUS = 14
+const MIN_PEN_PRESSURE = 0.25
 
 /**
  * Freehand canvas. Pointer Events cover Apple Pencil (with pressure), touch and mouse.
@@ -121,7 +122,8 @@ export default function DrawPad({
     const rect = baseRef.current!.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * CANVAS_W
     const y = ((e.clientY - rect.top) / rect.height) * CANVAS_H
-    const pressure = e.pointerType === 'pen' ? e.pressure || 0.5 : 0.5
+    // Fast, light Pencil flicks report near-zero pressure; keep a minimum so they stay visible.
+    const pressure = e.pointerType === 'pen' ? Math.max(MIN_PEN_PRESSURE, e.pressure || 0.5) : 0.5
     return [x, y, pressure]
   }
 
@@ -149,9 +151,13 @@ export default function DrawPad({
     if (e.pointerType === 'touch' && penSeenRef.current) return // palm rejection
     if (e.pointerType === 'mouse' && e.button !== 0) return
     if (activeRef.current) {
-      // A palm that landed before the Pencil: drop its stroke and let the Pencil draw.
-      if (e.pointerType === 'pen' && activeRef.current.type === 'touch') discardActive()
-      else return // one stroke at a time
+      if (e.pointerType === 'pen' && activeRef.current.type === 'touch') {
+        discardActive() // a palm that landed before the Pencil: drop its mark, let the Pencil draw
+      } else if (e.pointerType === 'pen' && activeRef.current.type === 'pen') {
+        finishActive() // the previous stroke's pen-up never arrived (fast strokes): keep it, start anew
+      } else {
+        return // one stroke at a time
+      }
     }
     e.preventDefault()
     try {
@@ -191,27 +197,32 @@ export default function DrawPad({
     if (e.pointerType === 'pen') notePenActivity()
     const active = activeRef.current
     if (!active || e.pointerId !== active.id) return
+    // A touch cancelled by the system (e.g. a palm) shouldn't leave a mark.
+    if (e.type === 'pointercancel' && e.pointerType === 'touch') return discardActive()
+    finishActive(e.type === 'pointerup' ? toPoint(e) : undefined)
+  }
+
+  /** End the stroke in progress and save it (or the eraser's changes) as one undo step. */
+  function finishActive(liftPoint?: Point) {
+    const active = activeRef.current
+    if (!active) return
     activeRef.current = null
     cancelAnimationFrame(frameRef.current)
     paint(liveRef.current, [], true)
-    // A touch cancelled by the system (e.g. a palm) shouldn't leave a mark.
-    if (e.type === 'pointercancel' && e.pointerType === 'touch') {
-      if (active.erasing) onChange(active.before)
-      return
-    }
     if (active.erasing) {
       if (valueRef.current !== active.before) commit(valueRef.current, active.before)
-    } else {
-      // Include where the pen lifted (pressure is 0 on lift, so reuse the last sample's).
-      const pts = active.stroke.points
-      const [x, y] = toPoint(e)
-      const last = pts[pts.length - 1]
-      if (e.type === 'pointerup' && Math.hypot(x - last[0], y - last[1]) > 0.5) pts.push([x, y, last[2]])
-      const next = [...valueRef.current, compactStroke(active.stroke)]
-      valueRef.current = next
-      commit(next, active.before)
-      paint(baseRef.current, next, true) // paint now; avoids a one-frame flicker
+      return
     }
+    // Include where the pen lifted (pressure is 0 on lift, so reuse the last sample's).
+    const pts = active.stroke.points
+    const last = pts[pts.length - 1]
+    if (liftPoint && Math.hypot(liftPoint[0] - last[0], liftPoint[1] - last[1]) > 0.5) {
+      pts.push([liftPoint[0], liftPoint[1], last[2]])
+    }
+    const next = [...valueRef.current, compactStroke(active.stroke)]
+    valueRef.current = next
+    commit(next, active.before)
+    paint(baseRef.current, next, true) // paint now; avoids a one-frame flicker
   }
 
   function discardActive() {
@@ -302,7 +313,6 @@ export default function DrawPad({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          onLostPointerCapture={onPointerUp}
           onContextMenu={(e) => e.preventDefault()}
         />
       </div>
