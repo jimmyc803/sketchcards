@@ -67,7 +67,7 @@ export default function AuthScreen() {
         ) : (
           <form onSubmit={verifyCode} className="stack">
             <p>
-              Check <strong>{email}</strong>. Tap the link, or type the code from the email here:
+              Check <strong>{email}</strong> and tap the link. If the email shows a code, you can type it here instead:
             </p>
             <label className="field">
               <span>Code</span>
@@ -76,7 +76,7 @@ export default function AuthScreen() {
                 autoComplete="one-time-code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder="123456"
+                placeholder="Code from email"
               />
             </label>
             <button className="btn primary" disabled={busy || code.trim().length < 6}>

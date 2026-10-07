@@ -14,3 +14,4 @@ __pycache__
 .vscode/*
 !.vscode/extensions.json
 .idea
+supabase/.temp
