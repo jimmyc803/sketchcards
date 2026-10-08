@@ -1550,3 +1550,14 @@ figure.board {
     clip: rect(0 0 0 0);
   }
 }
+/* A card with a sketch shows the sketch on the user's chosen paper instead of ruled lines. */
+.index-card.plain,
+.study-card.plain {
+  background-image: none;
+  padding-top: 1rem;
+}
+.face .face-board {
+  max-width: 520px;
+  border: 0;
+  background: transparent;
+}

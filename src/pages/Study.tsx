@@ -263,7 +263,7 @@ function StudyCard({
   const showBack = flipped && (!textOnlyBack || card.back_text.trim())
   return (
     <section
-      className="panel study-card"
+      className={`panel study-card ${showBack && !textOnlyBack && card.back_strokes?.length ? 'plain' : ''}`}
       onClick={() => !flipped && onFlip()}
       aria-label={flipped ? 'Card, answer shown' : 'Card front. Tap to show the answer'}
     >

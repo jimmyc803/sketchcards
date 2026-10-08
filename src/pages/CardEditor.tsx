@@ -228,7 +228,7 @@ function EditorBody({ deck, card }: { deck: Deck; card?: Card }) {
             </figure>
             <figure>
               <figcaption>Back</figcaption>
-              <div className="index-card">
+              <div className={`index-card ${form.back_strokes?.length ? 'plain' : ''}`}>
                 <CardFace
                   side="back"
                   content={{
