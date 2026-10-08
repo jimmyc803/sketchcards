@@ -74,7 +74,8 @@ function Shell() {
       </a>
       <header className="topbar">
         <Link to="/" className="logo">
-          sketchcards
+          <img src="/icon.svg" alt="" width={26} height={26} />
+          <span className="logo-text">sketchcards</span>
         </Link>
         <span className={`sync sync-${sync}`} role="status" aria-live="polite">
           {sync === 'offline'

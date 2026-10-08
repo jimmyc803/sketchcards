@@ -8,7 +8,7 @@ import type { Card, Deck, Grade, Stroke } from '../data/types'
 import { hasVisualReference } from '../lib/cards'
 import { penRecentlyActive } from '../draw/penActivity'
 import { currentStreak } from '../stats/streak'
-import { FlameIcon } from '../components/icons'
+import { BackIcon, FlameIcon } from '../components/icons'
 import { useDefaultNewPerDay } from '../lib/prefs'
 import { gradeProgress, intervalLabel } from '../srs/grading'
 import { buildQueue } from '../srs/queue'
@@ -180,10 +180,11 @@ function StudySession({ deck, practice, only }: { deck: Deck; practice: boolean;
         {practice ? 'Practicing' : 'Studying'} {deck.name}
       </h1>
       <div className="row">
-        <Link to={`/deck/${deck.id}`} className="muted">
-          ← {deck.name}
+        <Link to={`/deck/${deck.id}`} className="back-link">
+          <BackIcon /> Exit
         </Link>
-        {practice && <span className="tag">Practice · schedule unchanged</span>}
+        <span className="study-title">{deck.name}</span>
+        {practice && <span className="tag" title="Practice doesn't change when cards are due">Practice</span>}
         <span className="spacer" />
         <span className="muted" aria-live="polite">
           {session.answered} / {session.total}
@@ -210,7 +211,10 @@ function StudySession({ deck, practice, only }: { deck: Deck; practice: boolean;
               <Compare card={card} drawing={drawing} overlay={overlay && hasVisualReference(card)} />
             </div>
           ) : (
-            <DrawPad key={`${card.id}:${session.queue.length}:${session.answered}`} value={drawing} onChange={setDrawing} label="Draw your answer" />
+            <div className="stack" style={{ gap: '0.4rem' }}>
+              <p className="muted hint">Draw your answer below, then tap Show answer to compare.</p>
+              <DrawPad key={`${card.id}:${session.queue.length}:${session.answered}`} value={drawing} onChange={setDrawing} label="Draw your answer" />
+            </div>
           )}
         </div>
       ) : (
@@ -318,7 +322,7 @@ function Summary({
   if (practice) {
     return (
       <div className="stack">
-        <h1>Practice complete 🎉</h1>
+        <h1>Practice done</h1>
         {streakLine}
         <p>
           {count('got')} of {rows.length} right on the first try
@@ -356,7 +360,7 @@ function Summary({
 
   return (
     <div className="stack">
-      <h1>Session complete 🎉</h1>
+      <h1>Done for today</h1>
       {streakLine}
       <p>
         {rows.length} cards · <span className="error">{count('missed')} missed</span> · {count('close')} close ·{' '}

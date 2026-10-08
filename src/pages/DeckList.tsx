@@ -10,6 +10,8 @@ import { addSampleDeck, downloadJson, exportDecks, importDeckFile, safeFilename 
 import DeckMenu from '../components/DeckMenu'
 import InstallHint from '../components/InstallHint'
 import StreakLine from '../components/StreakLine'
+import { CardsIcon, PlusIcon, PracticeIcon, StudyIcon } from '../components/icons'
+import { deckColor } from '../lib/deckColor'
 
 export default function DeckList() {
   const decks = useData((s) => s.decks)
@@ -47,42 +49,50 @@ export default function DeckList() {
     })
   }
 
+  const fileButtons = (
+    <>
+      <input
+        ref={fileInput}
+        type="file"
+        accept=".json,application/json"
+        hidden
+        onChange={(e) => {
+          void importFile(e.target.files?.[0])
+          e.target.value = ''
+        }}
+      />
+      <button className="link-btn" onClick={() => fileInput.current?.click()} disabled={!!busy}>
+        Import a deck file
+      </button>
+      <span aria-hidden="true">·</span>
+      <button
+        className="link-btn"
+        onClick={() =>
+          (!hasSample || confirm('You already have a Welcome deck. Add another copy?')) &&
+          run('Adding sample deck…', addSampleDeck)
+        }
+        disabled={!!busy}
+      >
+        Add the sample deck
+      </button>
+    </>
+  )
+
   return (
     <>
       <div className="page-head">
-        <h1>Decks</h1>
+        <h1>My decks</h1>
         <span className="spacer" />
         {busy && (
           <span className="muted" role="status">
             {busy}
           </span>
         )}
-        <button
-          className="btn"
-          onClick={() =>
-            (!hasSample || confirm('You already have a Welcome deck. Add another copy?')) &&
-            run('Adding sample deck…', addSampleDeck)
-          }
-          disabled={!!busy}
-        >
-          Add sample deck
-        </button>
-        <button className="btn" onClick={() => fileInput.current?.click()} disabled={!!busy}>
-          Import deck
-        </button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".json,application/json"
-          hidden
-          onChange={(e) => {
-            void importFile(e.target.files?.[0])
-            e.target.value = ''
-          }}
-        />
-        <button className="btn primary" onClick={() => setCreating(true)}>
-          New deck
-        </button>
+        {!creating && (
+          <button className="btn primary" onClick={() => setCreating(true)}>
+            <PlusIcon /> New deck
+          </button>
+        )}
       </div>
       {error && (
         <p className="error" role="alert">
@@ -97,19 +107,39 @@ export default function DeckList() {
       {decks.length === 0 ? (
         <div className="empty">
           {ready ? (
-            <p>
-              No decks yet. Create one, or add the sample deck for a quick tour of flipping, grading and drawing.
-            </p>
+            <>
+              <h2>Make your first deck</h2>
+              <ol className="steps">
+                <li>
+                  <b>New deck</b> for a subject, like “Biology”
+                </li>
+                <li>
+                  <b>Add cards</b>: a question on the front, the answer on the back
+                </li>
+                <li>
+                  <b>Study</b>: we’ll bring each card back when it’s due
+                </li>
+              </ol>
+              <div className="row" style={{ justifyContent: 'center' }}>
+                <button className="btn primary" onClick={() => setCreating(true)}>
+                  <PlusIcon /> New deck
+                </button>
+              </div>
+              <p className="file-actions">{fileButtons}</p>
+            </>
           ) : (
             <p>Loading your decks…</p>
           )}
         </div>
       ) : (
-        <div className="deck-grid">
-          {decks.map((d) => (
-            <DeckTile key={d.id} deck={d} />
-          ))}
-        </div>
+        <>
+          <div className="deck-grid">
+            {decks.map((d) => (
+              <DeckTile key={d.id} deck={d} />
+            ))}
+          </div>
+          <p className="file-actions">{fileButtons}</p>
+        </>
       )}
     </>
   )
@@ -129,20 +159,24 @@ function NewDeckForm({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <form className="panel stack" onSubmit={submit} style={{ marginBottom: '1rem' }}>
+    <form className="panel stack new-deck" onSubmit={submit}>
+      <h2>New deck</h2>
       <label className="field">
-        <span>Deck name</span>
+        <span>Name</span>
         <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Organic chemistry" />
       </label>
-      <div className="row">
-        <span className="muted">Cards default to</span>
+      <div className="field">
+        <span>How will you answer these cards?</span>
         <ModePicker value={mode} onChange={setMode} />
+        <small className="muted">You can change this for any card later.</small>
+      </div>
+      <div className="row">
         <span className="spacer" />
         <button type="button" className="btn ghost" onClick={onDone}>
           Cancel
         </button>
         <button className="btn primary" disabled={!name.trim()}>
-          Create
+          Create deck
         </button>
       </div>
     </form>
@@ -188,7 +222,7 @@ function DeckTile({ deck }: { deck: Deck }) {
   }
 
   return (
-    <article className="panel deck-tile">
+    <article className={`panel deck-tile tab-${deckColor(deck.id)}`}>
       <div className="deck-tile-head">
         {renaming ? (
           <input
@@ -211,7 +245,7 @@ function DeckTile({ deck }: { deck: Deck }) {
           label={`More actions for ${deck.name}`}
           items={[
             { label: 'Rename', onSelect: () => (setName(deck.name), setRenaming(true)) },
-            { label: 'Export (JSON)', onSelect: () => void exportDeck() },
+            { label: 'Export to a file', onSelect: () => void exportDeck() },
             { label: 'Delete deck…', onSelect: remove, danger: true },
           ]}
         />
@@ -221,28 +255,37 @@ function DeckTile({ deck }: { deck: Deck }) {
           {status}
         </p>
       )}
-      <div className="due">
-        <strong>{total}</strong> <span className="muted">to study today</span>
-        <div className="muted" style={{ fontSize: '0.85rem' }}>
-          {due} due · {newCount} new · {cards.length} cards
-          {deck.default_answer_mode === 'draw' && ' · ✎ draw'}
-        </div>
-      </div>
-      <div className="row">
-        <Link className={`btn ${total ? 'primary' : ''}`} to={`/study/${deck.id}`} aria-disabled={!total}>
-          Study
-        </Link>
-        {cards.length > 0 && (
-          <Link
-            className="btn"
-            to={`/study/${deck.id}?mode=practice`}
-            title="Review every card without changing when they're due"
-          >
-            Practice
+      <p className="deck-meta muted">
+        {cards.length} {cards.length === 1 ? 'card' : 'cards'}
+        {deck.default_answer_mode === 'draw' && ' · drawn answers'}
+      </p>
+      <p className="due">
+        {cards.length === 0 ? (
+          <span className="muted">No cards yet</span>
+        ) : total ? (
+          <>
+            <strong>{total}</strong> to study today
+          </>
+        ) : (
+          <span className="muted">All caught up for today</span>
+        )}
+      </p>
+      <div className="deck-actions">
+        {cards.length === 0 ? (
+          <Link className="btn primary" to={`/deck/${deck.id}/new`}>
+            <PlusIcon /> Add cards
+          </Link>
+        ) : total ? (
+          <Link className="btn primary" to={`/study/${deck.id}`}>
+            <StudyIcon /> Study
+          </Link>
+        ) : (
+          <Link className="btn" to={`/study/${deck.id}?mode=practice`} title="Go over every card. Doesn't change when they're due.">
+            <PracticeIcon /> Practice
           </Link>
         )}
-        <Link className="btn" to={`/deck/${deck.id}`}>
-          Cards
+        <Link className="btn ghost" to={`/deck/${deck.id}`}>
+          <CardsIcon /> Open deck
         </Link>
       </div>
     </article>

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import CardFace from '../components/CardFace'
 import DrawPad from '../components/DrawPad'
 import ImagePicker, { type ImageValue } from '../components/ImagePicker'
 import ModePicker from '../components/ModePicker'
+import { BackIcon, PlusIcon, SketchIcon } from '../components/icons'
 import { imageFromDataTransfer, uploadImage } from '../data/images'
 import { makeCard, releaseImagePaths, saveCard, useData } from '../data/store'
 import type { AnswerMode, Card, Deck, Stroke } from '../data/types'
@@ -121,14 +122,14 @@ function EditorBody({ deck, card }: { deck: Deck; card?: Card }) {
 
   return (
     <div onKeyDown={onKeyDown}>
+      <Link to={`/deck/${deck.id}`} className="back-link">
+        <BackIcon /> {deck.name}
+      </Link>
       <div className="page-head">
         <h1>{isNew ? 'New card' : 'Edit card'}</h1>
-        <Link to={`/deck/${deck.id}`} className="muted">
-          in {deck.name}
-        </Link>
         {savedCount > 0 && (
-          <span className="muted" role="status">
-            ✓ {savedCount} saved
+          <span className="saved-note" role="status">
+            {savedCount} {savedCount === 1 ? 'card' : 'cards'} saved
           </span>
         )}
       </div>
@@ -137,13 +138,15 @@ function EditorBody({ deck, card }: { deck: Deck; card?: Card }) {
         <div className="stack">
           <section className="side-editor panel" onPaste={pasteInto('front')} aria-label="Front">
             <label className="field">
-              <span>Front</span>
+              <span className="side-title">
+                <b>Front</b> the question
+              </span>
               <textarea
                 ref={frontRef}
                 autoFocus
                 value={form.front_text}
                 onChange={(e) => set('front_text', e.target.value)}
-                placeholder="Prompt, e.g. Tryptophan (Trp, W)"
+                placeholder="e.g. What does the mitochondria do?"
               />
             </label>
             <ImagePicker label="Front image" value={form.front} onChange={(v) => set('front', v)} />
@@ -151,27 +154,35 @@ function EditorBody({ deck, card }: { deck: Deck; card?: Card }) {
 
           <section className="side-editor panel" onPaste={pasteInto('back')} aria-label="Back">
             <label className="field">
-              <span>Back</span>
+              <span className="side-title">
+                <b>Back</b> the answer
+              </span>
               <textarea
                 value={form.back_text}
                 onChange={(e) => set('back_text', e.target.value)}
-                placeholder="Answer"
+                placeholder="e.g. Makes energy for the cell"
               />
             </label>
-            <ImagePicker label="Back image" value={form.back} onChange={(v) => set('back', v)} />
-            <BackSketch strokes={form.back_strokes} onChange={(s) => set('back_strokes', s)} />
+            <BackSketch
+              strokes={form.back_strokes}
+              onChange={(s) => set('back_strokes', s)}
+              image={<ImagePicker label="Back image" value={form.back} onChange={(v) => set('back', v)} />}
+            />
           </section>
 
-          <section className="panel row">
-            <span className="muted">Answer mode</span>
-            <ModePicker value={form.answer_mode} onChange={(m) => set('answer_mode', m)} />
-            <label className="field" style={{ flex: 1, minWidth: 180 }}>
-              <span className="sr-only">Tags</span>
+          <section className="panel stack">
+            <div className="field">
+              <span>When studying, I’ll…</span>
+              <ModePicker value={form.answer_mode} onChange={(m) => set('answer_mode', m)} />
+            </div>
+            <label className="field">
+              <span>
+                Tags <span className="optional">optional</span>
+              </span>
               <input
                 value={form.tags}
                 onChange={(e) => set('tags', e.target.value)}
-                placeholder="Tags, comma separated"
-                aria-label="Tags"
+                placeholder="e.g. chapter 3, organelles"
               />
             </label>
           </section>
@@ -181,44 +192,60 @@ function EditorBody({ deck, card }: { deck: Deck; card?: Card }) {
               {error}
             </p>
           )}
-          <div className="row">
-            {isNew && (
-              <button className="btn primary" disabled={!canSave} onClick={() => save(true)}>
-                Save &amp; add another <span className="kbd">⌘↵</span>
+          <div className="row editor-actions">
+            {isNew ? (
+              <>
+                <button className="btn primary" disabled={!canSave} onClick={() => save(true)}>
+                  <PlusIcon /> {busy ? 'Saving…' : 'Save & add another'}
+                </button>
+                <button className="btn" disabled={!canSave} onClick={() => save(false)}>
+                  Save & go back
+                </button>
+              </>
+            ) : (
+              <button className="btn primary" disabled={!canSave} onClick={() => save(false)}>
+                {busy ? 'Saving…' : 'Save changes'}
               </button>
             )}
-            <button className={`btn ${isNew ? '' : 'primary'}`} disabled={!canSave} onClick={() => save(false)}>
-              {busy ? 'Saving…' : 'Save'}
-            </button>
             <Link className="btn ghost" to={`/deck/${deck.id}`}>
               Cancel
             </Link>
           </div>
+          {!canSave && !busy && <p className="muted hint">Write something on the front to save.</p>}
         </div>
 
-        <aside aria-label="Preview" className="stack">
-          <h2 style={{ fontSize: '1rem' }} className="muted">
-            Preview {form.answer_mode === 'draw' && '· draw mode'}
-          </h2>
+        <aside aria-label="Preview" className="stack preview">
+          <h2 className="preview-title">Preview</h2>
           <div className="preview-pair">
-            <div className="panel">
-              <CardFace
-                side="front"
-                content={{ text: form.front_text, image: form.front.path, imagePreview: frontPreview }}
-              />
-            </div>
-            <div className="panel">
-              <CardFace
-                side="back"
-                content={{
-                  text: form.back_text,
-                  image: form.back.path,
-                  imagePreview: backPreview,
-                  strokes: form.back_strokes,
-                }}
-              />
-            </div>
+            <figure>
+              <figcaption>Front</figcaption>
+              <div className="index-card">
+                <CardFace
+                  side="front"
+                  content={{ text: form.front_text, image: form.front.path, imagePreview: frontPreview }}
+                />
+              </div>
+            </figure>
+            <figure>
+              <figcaption>Back</figcaption>
+              <div className="index-card">
+                <CardFace
+                  side="back"
+                  content={{
+                    text: form.back_text,
+                    image: form.back.path,
+                    imagePreview: backPreview,
+                    strokes: form.back_strokes,
+                  }}
+                />
+              </div>
+            </figure>
           </div>
+          <p className="muted hint">
+            {form.answer_mode === 'draw'
+              ? 'You’ll sketch your answer, then see the back next to it.'
+              : 'You’ll see the front, think of the answer, then flip.'}
+          </p>
         </aside>
       </div>
     </div>
@@ -226,17 +253,26 @@ function EditorBody({ deck, card }: { deck: Deck; card?: Card }) {
 }
 
 /** Sketch the reference answer with the same canvas used when studying. Saved as strokes. */
-function BackSketch({ strokes, onChange }: { strokes: Stroke[] | null; onChange: (s: Stroke[] | null) => void }) {
+function BackSketch({
+  strokes,
+  onChange,
+  image,
+}: {
+  strokes: Stroke[] | null
+  onChange: (s: Stroke[] | null) => void
+  image: ReactNode
+}) {
   const [open, setOpen] = useState(false)
   if (!open) {
     return (
       <div className="row">
+        {image}
         <button type="button" className="btn small" onClick={() => setOpen(true)}>
-          ✎ {strokes?.length ? 'Edit sketch' : 'Draw on back'}
+          <SketchIcon /> {strokes?.length ? 'Edit drawing' : 'Draw the answer'}
         </button>
         {!!strokes?.length && (
           <button type="button" className="btn small ghost" onClick={() => onChange(null)}>
-            Remove sketch
+            Remove drawing
           </button>
         )}
       </div>
@@ -244,10 +280,10 @@ function BackSketch({ strokes, onChange }: { strokes: Stroke[] | null; onChange:
   }
   return (
     <div className="stack">
-      <DrawPad value={strokes ?? []} onChange={(s) => onChange(s.length ? s : null)} label="Reference sketch" />
+      <DrawPad value={strokes ?? []} onChange={(s) => onChange(s.length ? s : null)} label="Answer drawing" />
       <div className="row">
-        <span className="muted" style={{ fontSize: '0.8rem' }}>
-          Draw the answer as you'd want to see it when studying.
+        <span className="muted" style={{ fontSize: '0.85rem' }}>
+          Draw the answer the way you want to see it when studying.
         </span>
         <span className="spacer" />
         <button type="button" className="btn small primary" onClick={() => setOpen(false)}>

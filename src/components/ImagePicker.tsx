@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import CardImage from './CardImage'
+import { ImageIcon } from './icons'
 
 /** The image state of one card side: the saved path, or a new local file not yet uploaded. */
 export interface ImageValue {
@@ -40,14 +41,13 @@ export default function ImagePicker({
         }}
       />
       <button type="button" className="btn small" onClick={() => input.current?.click()}>
-        {has ? 'Replace image' : 'Add image'}
+        <ImageIcon /> {has ? 'Replace picture' : 'Add a picture'}
       </button>
       {has && (
         <button type="button" className="btn small ghost" onClick={() => onChange({ path: null, file: null })}>
           Remove
         </button>
       )}
-      {!has && <span className="muted" style={{ fontSize: '0.8rem' }}>or paste with ⌘/Ctrl+V</span>}
     </div>
   )
 }

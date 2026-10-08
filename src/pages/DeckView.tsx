@@ -2,7 +2,10 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import CardImage from '../components/CardImage'
 import CsvImport from '../components/CsvImport'
+import DeckMenu from '../components/DeckMenu'
 import ModePicker from '../components/ModePicker'
+import { BackIcon, GearIcon, PlusIcon, PracticeIcon, StudyIcon } from '../components/icons'
+import { deckColor } from '../lib/deckColor'
 import { deleteCard, deleteDeck, duplicateCard, moveCard, saveDeck, useData } from '../data/store'
 import type { Card, Deck } from '../data/types'
 import { useDefaultNewPerDay } from '../lib/prefs'
@@ -58,36 +61,57 @@ function DeckBody({ deck }: { deck: Deck }) {
 
   return (
     <>
-      <div className="page-head">
-        <h1>{deck.name}</h1>
-        <span className="muted">{cards.length} cards</span>
+      <Link to="/" className="back-link">
+        <BackIcon /> My decks
+      </Link>
+      <div className={`page-head deck-head tab-${deckColor(deck.id)}`}>
+        <div>
+          <h1>{deck.name}</h1>
+          <p className="muted">
+            {cards.length} {cards.length === 1 ? 'card' : 'cards'}
+            {deck.default_answer_mode === 'draw' && ' · drawn answers'}
+          </p>
+        </div>
         <span className="spacer" />
-        <Link className="btn primary" to={`/study/${deck.id}`}>
-          Study
+        <Link className="btn primary" to={`/deck/${deck.id}/new`}>
+          <PlusIcon /> Add card
         </Link>
-        <Link className="btn" to={`/study/${deck.id}?mode=practice`} aria-disabled={!cards.length}>
-          Practice
-        </Link>
-        <Link className="btn" to={`/deck/${deck.id}/new`}>
-          Add card
-        </Link>
-        <button className="btn" onClick={() => setSettingsOpen((o) => !o)} aria-expanded={settingsOpen}>
-          Deck settings
+        {cards.length > 0 && (
+          <>
+            <Link className="btn" to={`/study/${deck.id}`}>
+              <StudyIcon /> Study
+            </Link>
+            <Link
+              className="btn"
+              to={`/study/${deck.id}?mode=practice`}
+              title="Go over every card. Doesn't change when they're due."
+            >
+              <PracticeIcon /> Practice
+            </Link>
+          </>
+        )}
+        <button
+          className="btn ghost"
+          onClick={() => setSettingsOpen((o) => !o)}
+          aria-expanded={settingsOpen}
+        >
+          <GearIcon /> Deck settings
         </button>
       </div>
 
       {settingsOpen && (
         <DeckSettings deck={deck} onDelete={removeDeck}>
           <button className="btn" onClick={() => setCsvOpen(true)}>
-            Import CSV
+            Import cards from CSV
           </button>
           <button className="btn" onClick={exportDeck} disabled={exporting}>
-            {exporting ? 'Exporting…' : 'Export deck (JSON)'}
+            {exporting ? 'Exporting…' : 'Export to a file'}
           </button>
         </DeckSettings>
       )}
       {csvOpen && <CsvImport deck={deck} onClose={() => setCsvOpen(false)} />}
 
+      {cards.length > 0 && (
       <div className="row" style={{ marginBottom: '0.75rem' }}>
         <input
           type="search"
@@ -112,12 +136,14 @@ function DeckBody({ deck }: { deck: Deck }) {
           </div>
         )}
       </div>
+      )}
 
       {cards.length === 0 ? (
         <div className="empty">
-          <p>No cards yet.</p>
+          <h2>This deck is empty</h2>
+          <p>Each card has a front (the question) and a back (the answer).</p>
           <Link className="btn primary" to={`/deck/${deck.id}/new`}>
-            Add your first card
+            <PlusIcon /> Add your first card
           </Link>
         </div>
       ) : (
@@ -126,6 +152,11 @@ function DeckBody({ deck }: { deck: Deck }) {
             <CardRow key={c.id} card={c} decks={decks} due={progress.get(c.id)?.due_date ?? null} />
           ))}
           {visible.length === 0 && <li className="muted">No cards match.</li>}
+          <li>
+            <Link className="add-row" to={`/deck/${deck.id}/new`}>
+              <PlusIcon /> Add a card
+            </Link>
+          </li>
         </ul>
       )}
     </>
@@ -163,13 +194,14 @@ function DeckSettings({ deck, onDelete, children }: { deck: Deck; onDelete: () =
           />
         </label>
       </div>
-      <div className="row">
-        <span className="muted">New cards default to</span>
+      <div className="field">
+        <span>New cards are answered by</span>
         <ModePicker value={deck.default_answer_mode} onChange={(m) => saveDeck({ ...deck, default_answer_mode: m })} />
-        <span className="spacer" />
+      </div>
+      <div className="row">
         {children}
         <button className="btn danger" onClick={onDelete}>
-          Delete deck
+          Delete deck…
         </button>
       </div>
     </section>
@@ -178,30 +210,29 @@ function DeckSettings({ deck, onDelete, children }: { deck: Deck; onDelete: () =
 
 function CardRow({ card, decks, due }: { card: Card; decks: Deck[]; due: string | null }) {
   const [moving, setMoving] = useState(false)
+  const others = decks.filter((d) => d.id !== card.deck_id)
   return (
     <li className="panel card-row">
-      <div className="side">
-        <Summary text={card.front_text} image={card.front_image} />
-        <div className="meta">
-          {card.answer_mode === 'draw' && <span className="tag">✎ draw</span>}
-          {card.tags.map((t) => (
-            <span key={t} className="tag">
-              {t}
-            </span>
-          ))}
+      <Link to={`/card/${card.id}`} className="card-row-main" aria-label="Edit card">
+        <div className="side">
+          <small className="side-label">Front</small>
+          <Summary text={card.front_text} image={card.front_image} />
         </div>
+        <div className="side">
+          <small className="side-label">Back</small>
+          <Summary text={card.back_text} image={card.back_image} sketch={!!card.back_strokes?.length} />
+        </div>
+      </Link>
+      <div className="card-row-meta">
+        {card.answer_mode === 'draw' && <span className="tag">Draw</span>}
+        {card.tags.map((t) => (
+          <span key={t} className="tag">
+            {t}
+          </span>
+        ))}
+        <span className="muted">{due ? `Due ${due}` : 'Not studied yet'}</span>
       </div>
-      <div className="side muted">
-        <Summary text={card.back_text} image={card.back_image} sketch={!!card.back_strokes?.length} />
-        <div style={{ fontSize: '0.8rem' }}>{due ? `Due ${due}` : 'New'}</div>
-      </div>
-      <div className="row">
-        <Link className="btn small" to={`/card/${card.id}`}>
-          Edit
-        </Link>
-        <button className="btn small" onClick={() => duplicateCard(card)}>
-          Duplicate
-        </button>
+      <div className="row card-row-actions">
         {moving ? (
           <select
             autoFocus
@@ -217,26 +248,25 @@ function CardRow({ card, decks, due }: { card: Card; decks: Deck[]; due: string 
             <option value="" disabled>
               Move to…
             </option>
-            {decks
-              .filter((d) => d.id !== card.deck_id)
-              .map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
+            {others.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
           </select>
         ) : (
-          <button className="btn small" onClick={() => setMoving(true)} disabled={decks.length < 2}>
-            Move
-          </button>
+          <Link className="btn small" to={`/card/${card.id}`}>
+            Edit
+          </Link>
         )}
-        <button
-          className="btn small danger"
-          onClick={() => confirm('Delete this card?') && deleteCard(card.id)}
-          aria-label="Delete card"
-        >
-          Delete
-        </button>
+        <DeckMenu
+          label="More actions for this card"
+          items={[
+            { label: 'Duplicate', onSelect: () => void duplicateCard(card) },
+            ...(others.length ? [{ label: 'Move to another deck', onSelect: () => setMoving(true) }] : []),
+            { label: 'Delete card…', onSelect: () => confirm('Delete this card?') && void deleteCard(card.id), danger: true },
+          ]}
+        />
       </div>
     </li>
   )
@@ -246,8 +276,8 @@ function Summary({ text, image, sketch }: { text: string; image: string | null; 
   return (
     <div className="row" style={{ flexWrap: 'nowrap' }}>
       {image && <CardImage src={image} alt="" className="image-thumb" />}
-      <span className="side">{text.split('\n')[0] || (image || sketch ? '' : '—')}</span>
-      {sketch && <span className="tag">sketch</span>}
+      <span className="side">{text.split('\n')[0] || (image || sketch ? '' : '(empty)')}</span>
+      {sketch && <span className="tag">Sketch</span>}
     </div>
   )
 }
